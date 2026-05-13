@@ -14,8 +14,6 @@
  *   GtkComboBoxText      - lista suspensa de opções
  *   GtkScrolledWindow    - área rolável (para quando há muitas tarefas)
  *   GtkMessageDialog     - janela de mensagem de erro/aviso
- *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <gtk/gtk.h>
