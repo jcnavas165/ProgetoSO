@@ -1,35 +1,51 @@
-/* projeto A SO
- * Autores: Julio Cesar Navas e Nathálya Chaves 
+/*
  * config.c - Implementação da leitura e parse do arquivo de configuração
  *
+ * O parse segue o formato especificado no documento:
  *   Linha 1: algoritmo;quantum;qtde_cpus
  *   Linha N: id;cor;ingresso;duracao;prioridade[;eventos]
+ *
+ * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>    // tolower(), para tratar maiúsculas/minúsculas
+#include <ctype.h>    /* tolower(), para tratar maiúsculas/minúsculas */
 #include "config.h"
 
-// Funções auxiliares internas (static = visíveis só neste arquivo) 
+/* ── Funções auxiliares internas (static = visíveis só neste arquivo) ─────── */
 
-
-// str_to_lower - Converte uma string para letras minúsculas 
-// A funçao modifica a string no local (in-place).
+/*
+ * str_to_lower - Converte uma string para letras minúsculas (in-place)
+ *
+ * Necessário para tratar o requisito 3.3.2: nomes de algoritmos
+ * são case-insensitive. Modificamos uma cópia, não o original.
+ *
+ * Decisão de implementação:
+ *   Usamos toupper da biblioteca ctype.h para portabilidade.
+ *   A função modifica a string no local (in-place).
+ */
 static void str_to_lower(char *s) {
     for (; *s; s++) {
         *s = (char)tolower((unsigned char)*s);
     }
 }
 
-// trim - Remove espaços e caracteres de controle das bordas da string
-//necessário porque fgets() preserva o '\n' final da linha lida,e o usuário pode colocar espaços antes/depois dos valores no arquivo.
+/*
+ * trim - Remove espaços e caracteres de controle das bordas da string
+ *
+ * Necessário porque fgets() preserva o '\n' final da linha lida,
+ * e o usuário pode colocar espaços antes/depois dos valores no arquivo.
+ *
+ * Modifica a string in-place retornando o ponteiro para o início
+ * do conteúdo sem espaços iniciais.
+ */
 static char *trim(char *s) {
-    //Remove espaços do inicio 
+    /* Remove espaços do início */
     while (*s && isspace((unsigned char)*s)) s++;
 
-    //remove espaços do final 
+    /* Remove espaços/newline do final */
     char *end = s + strlen(s) - 1;
     while (end > s && isspace((unsigned char)*end)) {
         *end = '\0';
@@ -38,8 +54,16 @@ static char *trim(char *s) {
     return s;
 }
 
-// implementação das funções públicas 
-// algo_name_to_enum - Converte string para enum do algoritmo
+/* ── Implementação das funções públicas ───────────────────────────────────── */
+
+/*
+ * algo_name_to_enum - Converte string para enum do algoritmo
+ *
+ * Decisão de implementação:
+ *   Convertemos para minúsculas antes de comparar, implementando
+ *   o requisito 3.3.2 (case-insensitive). Fazemos a conversão em
+ *   uma cópia local para não modificar o parâmetro original.
+ */
 SchedAlgo algo_name_to_enum(const char *name) {
     char lower[MAX_ALGO_NAME];
     strncpy(lower, name, MAX_ALGO_NAME - 1);
@@ -52,7 +76,9 @@ SchedAlgo algo_name_to_enum(const char *name) {
     return ALGO_UNKNOWN;
 }
 
-//algo_enum_to_name - Retorna nome legível do algoritmo
+/*
+ * algo_enum_to_name - Retorna nome legível do algoritmo
+ */
 const char *algo_enum_to_name(SchedAlgo algo) {
     switch (algo) {
         case ALGO_SRTF:  return "SRTF (Shortest Remaining Time First)";
@@ -61,9 +87,19 @@ const char *algo_enum_to_name(SchedAlgo algo) {
     }
 }
 
-//config_load - Carrega configuração do arquivo
-//Abrimos o arquivo, lemos linha 1 → parâmetros gerais (sscanf com separador ';'), para cada linha restante → parse de uma tarefa, inicializamos cada TCB com task_init()
-//tratamento de erros: Retornamos -1 imediatamente em qualquer erro crítico,com mensagem explicativa no stderr.
+/*
+ * config_load - Carrega configuração do arquivo
+ *
+ * Estratégia de parse:
+ *   1. Abrimos o arquivo
+ *   2. Lemos linha 1 → parâmetros gerais (sscanf com separador ';')
+ *   3. Para cada linha restante → parse de uma tarefa
+ *   4. Inicializamos cada TCB com task_init()
+ *
+ * Tratamento de erros:
+ *   Retornamos -1 imediatamente em qualquer erro crítico,
+ *   com mensagem explicativa no stderr.
+ */
 int config_load(SimConfig *cfg, const char *filename) {
     FILE *f = fopen(filename, "r");
     if (!f) {
@@ -74,12 +110,12 @@ int config_load(SimConfig *cfg, const char *filename) {
     char line[MAX_LINE_LEN];
     int  line_num = 0;
 
-    //Inicializa a estrutura com zeros 
+    /* ── Inicializa a estrutura com zeros ────────────────────────────────── */
     memset(cfg, 0, sizeof(SimConfig));
     cfg->num_tasks = 0;
 
     while (fgets(line, MAX_LINE_LEN, f)) {
-        //Ignora linhas em branco e comentários antes de acrescentar linha
+        /* Ignora linhas em branco e comentários ANTES de incrementar linha */
         char *trimmed = trim(line);
         if (strlen(trimmed) == 0 || trimmed[0] == '#') {
             continue;
@@ -88,8 +124,14 @@ int config_load(SimConfig *cfg, const char *filename) {
         line_num++;
 
         if (line_num == 1) {
-            //linha 1: parâmetros gerais 
-            // Usamos strtok para dividir pelo separador ';'
+            /* ── Parse da linha 1: parâmetros gerais ─────────────────────── */
+            /*
+             * Formato: algoritmo;quantum;qtde_cpus
+             * Usamos strtok para dividir pelo separador ';'
+             *
+             * Decisão: strtok modifica a string original (coloca '\0' onde
+             * encontra o separador). Por isso trabalhamos com uma cópia.
+             */
             char buf[MAX_LINE_LEN];
             strncpy(buf, trimmed, MAX_LINE_LEN - 1);
 
@@ -124,8 +166,11 @@ int config_load(SimConfig *cfg, const char *filename) {
             }
 
         } else {
-            //demais linhas 2: parâmetros de cada tarefa 
-            //formato: id;cor;ingresso;duracao;prioridade[;eventos]
+            /* ── Parse das linhas 2+: parâmetros de cada tarefa ──────────── */
+            /*
+             * Formato: id;cor;ingresso;duracao;prioridade[;eventos]
+             * Campos de eventos são opcionais neste projeto (Projeto B).
+             */
             if (cfg->num_tasks >= MAX_TASKS) {
                 fprintf(stderr, "[AVISO] Limite de %d tarefas atingido, linha %d ignorada\n",
                         MAX_TASKS, line_num);
@@ -138,7 +183,7 @@ int config_load(SimConfig *cfg, const char *filename) {
             int  id, arrival, duration, priority;
             char color[COLOR_LEN];
 
-            //parse campo a campo com strtok
+            /* Parse campo a campo com strtok */
             char *tok;
 
             tok = strtok(buf, ";");
@@ -167,10 +212,11 @@ int config_load(SimConfig *cfg, const char *filename) {
             if (!tok) { goto parse_error_task; }
             priority = atoi(trim(tok));
 
-            // Inicializa o TCB desta tarefa
+            /* Inicializa o TCB desta tarefa */
             task_init(&cfg->tasks[cfg->num_tasks], id, color, arrival, duration, priority);
             cfg->num_tasks++;
-            
+
+            /* Nota: campo 'lista_eventos' é ignorado neste projeto (Projeto B) */
             continue;
 
 parse_error_task:
@@ -182,13 +228,13 @@ parse_error_task:
 
     fclose(f);
 
-    //vrifica se carregou ao menos uma tarefa 
+    /* Verifica se carregou ao menos uma tarefa */
     if (cfg->num_tasks == 0) {
         fprintf(stderr, "[ERRO] Nenhuma tarefa encontrada no arquivo de configuração\n");
         return -1;
     }
 
-    return 0; // Sucesso
+    return 0; /* Sucesso */
 
 parse_error:
     fprintf(stderr, "[ERRO] Formato inválido na linha 1: '%s'\n", line);
@@ -197,7 +243,9 @@ parse_error:
     return -1;
 }
 
-// config_print - Exibe a configuração carregada no terminal
+/*
+ * config_print - Exibe a configuração carregada no terminal
+ */
 void config_print(const SimConfig *cfg) {
     printf("\n╔══════════════════════════════════════════════╗\n");
     printf("║         CONFIGURAÇÃO DA SIMULAÇÃO            ║\n");
@@ -217,8 +265,12 @@ void config_print(const SimConfig *cfg) {
     printf("╚══════════════════════════════════════════════╝\n\n");
 }
 
-// config_create_default - Cria arquivo de configuração de exemplo
-// Gera um arquivo com 3 tarefas de exemplo para o usuário ter um ponto de partida.
+/*
+ * config_create_default - Cria arquivo de configuração de exemplo
+ *
+ * Gera um arquivo com 3 tarefas de exemplo para o usuário
+ * ter um ponto de partida.
+ */
 void config_create_default(const char *filename) {
     FILE *f = fopen(filename, "w");
     if (!f) {
