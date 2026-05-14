@@ -1,18 +1,3 @@
-/*
- * modify_dialog.c - Diálogo de modificação de tarefas durante a simulação
- *
- * Regras implementadas:
- *   NEW       → bloqueado, mensagem explicativa
- *   READY     → livre para modificar prioridade, tempo e estado
- *   RUNNING   → requer justificativa obrigatória, preempta e recalcula
- *   SUSPENDED → só prioridade (tempo bloqueado)
- *   FINISHED  → pode ser "ressuscitada" via combo de estado (ex: volta a READY)
- *
- * Combo de estado disponível para READY / RUNNING / SUSPENDED:
- *   → Pronta, Suspensa, Executando, Concluída (FINISHED)
- *
- */
-
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +6,7 @@
 #include "simulator.h"
 #include "task.h"
 
-/* ── Cores e nomes dos estados (usados no badge e na lista) ──────────────── */
+
 static const char *cor_estado(TaskState s) {
     switch(s) {
         case TASK_NEW:       return "#888888";
@@ -44,18 +29,7 @@ static const char *nome_estado(TaskState s) {
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
- * sim_apply_modification
- * ══════════════════════════════════════════════════════════════════════════
- *
- * Aplica prioridade e tempo restante novos no TCB e descarta snapshots
- * futuros para que a simulação recalcule a partir do tick atual.
- *
- * Parâmetros:
- *   nova_prior >= 0  → atualiza prioridade
- *   novo_rem   >= 1  → atualiza tempo restante
- *   -1 em qualquer um → não muda aquele campo
- */
+
 void sim_apply_modification(SimState *sim, int task_id,
                              int nova_prior, int novo_rem) {
     TCB *t = NULL;
@@ -68,11 +42,7 @@ void sim_apply_modification(SimState *sim, int task_id,
     if (nova_prior >= 0) t->priority  = nova_prior;
     if (novo_rem   >= 1) t->remaining = novo_rem;
 
-    /*
-     * Se ainda estava RUNNING após a troca de estado feita pelo diálogo,
-     * preempta: libera a CPU e manda a tarefa para READY.
-     * (O diálogo pode já ter trocado o estado; esta é uma garantia extra.)
-     */
+    
     if (t->state == TASK_RUNNING) {
         int cpu = t->cpu_id;
         t->state  = TASK_READY;
@@ -85,41 +55,15 @@ void sim_apply_modification(SimState *sim, int task_id,
         }
     }
 
-    /*
-     * Trunca o histórico de snapshots até a posição atual.
-     * Snapshots "futuros" (calculados com os valores antigos) são
-     * descartados. Ao clicar "Avançar", a simulação recalculará
-     * com os novos dados.
-     */
+    
     sim->history_count = sim->history_pos + 1;
-    sim->finished      = 0;  /* garante que pode continuar simulando */
+    sim->finished      = 0;  
 
     /* Salva snapshot com o estado já modificado */
     sim_take_snapshot(sim);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
- * modify_show_dialog — Janela principal de modificação
- * ══════════════════════════════════════════════════════════════════════════
- *
- * Layout:
- *  ┌──────────────────────────────────────────────────────┐
- *  │  Tarefa T3   [ ● EXECUTANDO ]                        │
- *  │──────────────────────────────────────────────────────│
- *  │  Chegada: 2    Duração original: 8                   │
- *  │  Prior. atual: 3   Tempo restante: 5                 │
- *  │  CPU atual: CPU 1  Tempo de espera: 2                │
- *  │──────────────────────────────────────────────────────│
- *  │  Nova prioridade:     [3 ▲▼]  (maior = prioritário)  │
- *  │  Novo tempo restante: [5 ▲▼]  (ticks necessários)    │
- *  │  Novo estado:         [Pronta ▼]                     │
- *  │──────────────────────────────────────────────────────│
- *  │  ⚠ Tarefa EXECUTANDO — justificativa obrigatória:   │
- *  │  [campo de texto livre________________________________]│
- *  │──────────────────────────────────────────────────────│
- *  │                   [Cancelar]  [Aplicar Modificação]  │
- *  └──────────────────────────────────────────────────────┘
- */
+
 ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
 
     /* ── Localiza o TCB pelo ID ──────────────────────────────────────── */
@@ -129,12 +73,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
     }
     if (!t) return MODIFY_NEGADO;
 
-    /* ── Bloqueia apenas TASK_NEW ────────────────────────────────────── */
-    /*
-     * TASK_FINISHED agora PODE ser modificada via combo de estado,
-     * permitindo "ressuscitar" uma tarefa (ex: voltar para READY).
-     * Apenas TASK_NEW é bloqueada pois ainda não entrou no sistema.
-     */
+    
     if (t->state == TASK_NEW) {
         GtkWidget *msg = gtk_message_dialog_new(
             parent, GTK_DIALOG_MODAL,
@@ -278,18 +217,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
     gtk_style_context_add_class(gtk_widget_get_style_context(lbl_hr), "dim-label");
     gtk_grid_attach(GTK_GRID(grid_edit), lbl_hr, 2, 1, 1, 1);
 
-    /* ── Linha 2: Combo de novo estado ──────────────────────────────── */
-    /*
-     * Permite ao usuário trocar manualmente o estado da tarefa.
-     * Opções disponíveis:
-     *   • Pronta     (TASK_READY)     — volta para a fila
-     *   • Suspensa   (TASK_SUSPENDED) — bloqueia a tarefa
-     *   • Executando (TASK_RUNNING)   — tenta alocar uma CPU
-     *   • Concluída  (TASK_FINISHED)  — marca como terminada manualmente
-     *
-     * "Concluída" é a opção nova — permite forçar o término de uma tarefa
-     * antes de ela consumir todo o seu tempo restante.
-     */
+    
     GtkWidget *lbl_est = gtk_label_new("Novo estado:");
     gtk_widget_set_halign(lbl_est, GTK_ALIGN_END);
     gtk_grid_attach(GTK_GRID(grid_edit), lbl_est, 0, 2, 1, 1);
@@ -351,7 +279,6 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
         gtk_box_pack_start(GTK_BOX(hbox_just), entry_justif, TRUE, TRUE, 0);
     }
 
-    /* ── Aviso informativo para SUSPENDED ────────────────────────────── */
     if (t->state == TASK_SUSPENDED) {
         GtkWidget *lbl_sus = gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(lbl_sus),
@@ -363,7 +290,6 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
         gtk_box_pack_start(GTK_BOX(vbox), lbl_sus, FALSE, FALSE, 0);
     }
 
-    /* ── Aviso para FINISHED ─────────────────────────────────────────── */
     if (t->state == TASK_FINISHED) {
         GtkWidget *lbl_fin = gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(lbl_fin),
@@ -380,11 +306,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
 
     gtk_widget_show_all(dlg);
 
-    /* ══════════════════════════════════════════════════════════════════
-     * Loop de resposta
-     * Fica no loop até o usuário clicar OK com dados válidos
-     * ou clicar Cancelar.
-     * ══════════════════════════════════════════════════════════════════ */
+    
     ModifyResult resultado = MODIFY_CANCELADO;
 
     while (1) {
@@ -396,7 +318,6 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
             break;
         }
 
-        /* ── Justificativa: só registra no log, não é obrigatória ──── */
         if (t->state == TASK_RUNNING && entry_justif) {
             const char *just = gtk_entry_get_text(GTK_ENTRY(entry_justif));
             if (strlen(just) > 0) {
@@ -407,7 +328,6 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
             printf("[TICK] %d\n\n", sim->current_tick);
         }
 
-        /* ── COLETA DOS VALORES ───────────────────────────────────── */
         int nova_prior = (int)gtk_spin_button_get_value(
                              GTK_SPIN_BUTTON(spin_prior));
 
@@ -416,14 +336,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
                          : (int)gtk_spin_button_get_value(
                                GTK_SPIN_BUTTON(spin_rem));
 
-        /* ── NOVO: captura o estado selecionado no combo ─────────── */
-        /*
-         * Mapeamento dos índices do combo para os estados:
-         *   0 → TASK_READY     (Pronta)
-         *   1 → TASK_SUSPENDED (Suspensa)
-         *   2 → TASK_RUNNING   (Executando)
-         *   3 → TASK_FINISHED  (Concluída)
-         */
+        
         int novo_estado = -1;  /* -1 = não muda o estado */
         int active = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_estado));
         if      (active == 0) novo_estado = TASK_READY;
@@ -431,12 +344,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
         else if (active == 2) novo_estado = TASK_RUNNING;
         else if (active == 3) novo_estado = TASK_FINISHED;
 
-        /* ── Aplica mudança de estado ANTES de sim_apply_modification ─
-         *
-         * A troca de estado precisa acontecer primeiro porque
-         * sim_apply_modification lê t->state para decidir se preempta.
-         * Se o usuário pediu FINISHED, marcamos o finish_tick antes.
-         */
+        
         if (novo_estado != -1 && novo_estado != (int)t->state) {
 
             /* Se estava RUNNING e vai sair: libera a CPU */
@@ -496,15 +404,7 @@ ModifyResult modify_show_dialog(GtkWindow *parent, SimState *sim, int task_id) {
     return resultado;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
- * Lista de tarefas — permite escolher qual tarefa modificar
- * ══════════════════════════════════════════════════════════════════════════ */
 
-/*
- * DadosLista - Dados passados para o callback do botão "Modificar →"
- * de cada linha da lista. Usamos malloc para garantir que os dados
- * persistam até o callback ser executado.
- */
 typedef struct {
     GtkWidget *janela_lista;  /* referência à janela da lista */
     SimState  *sim;           /* estado da simulação          */
@@ -512,13 +412,7 @@ typedef struct {
     GtkWidget *janela_pai;    /* janela pai original          */
 } DadosLista;
 
-/*
- * cb_modificar_da_lista - Chamado ao clicar "Modificar →" em uma linha
- *
- * Esconde a lista, abre o diálogo de modificação e:
- *   - Se aplicado: fecha a lista (gui_gantt redesenhará)
- *   - Se cancelado: volta a mostrar a lista
- */
+
 static void cb_modificar_da_lista(GtkWidget *btn, gpointer data) {
     (void)btn;
     DadosLista *d = (DadosLista *)data;
@@ -536,27 +430,7 @@ static void cb_modificar_da_lista(GtkWidget *btn, gpointer data) {
     free(d);
 }
 
-/*
- * modify_show_task_list - Janela com lista de todas as tarefas
- *
- * Exibe uma linha por tarefa com: ID, badge de estado, prioridade,
- * tempo restante e botão "Modificar →".
- *
- * TASK_NEW fica desabilitado (botão cinza).
- * TASK_FINISHED agora fica HABILITADO — pode ser reativada.
- *
- * Layout:
- *  ┌──────────────────────────────────────────────────────┐
- *  │  Selecione a tarefa que deseja modificar:            │
- *  │──────────────────────────────────────────────────────│
- *  │  T1  [ EXECUTANDO ]  prior=3  rest=7   [Modificar →] │
- *  │  T2  [ PRONTA     ]  prior=5  rest=4   [Modificar →] │
- *  │  T3  [ CONCLUÍDA  ]  prior=1  rest=0   [Modificar →] │
- *  │  T4  [ NOVA       ]  prior=2  rest=8   [desabilitado] │
- *  │──────────────────────────────────────────────────────│
- *  │                                        [Fechar]      │
- *  └──────────────────────────────────────────────────────┘
- */
+
 void modify_show_task_list(GtkWindow *parent, SimState *sim) {
     GtkWidget *dlg = gtk_dialog_new_with_buttons(
         "Modificar Tarefa Durante a Simulação",

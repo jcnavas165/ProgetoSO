@@ -30,16 +30,6 @@ typedef struct {
     SimState   sim;
     int        config_carregada;  // 0 = sem config ainda 
 
-    // Widgets que precisamos acessar nos callbacks 
-    GtkWidget *janela;
-    GtkWidget *area;
-    GtkWidget *lbl_status;
-    GtkWidget *btn_avancar;
-    GtkWidget *btn_retroceder;
-    GtkWidget *btn_tudo;
-    GtkWidget *btn_salvar;
-    GtkWidget *btn_modificar;    // modificar tarefa em execução
-    GtkWidget *btn_nova_sim;     //iniciar nova simulação
 } AppState;
 
 //Utilitários 

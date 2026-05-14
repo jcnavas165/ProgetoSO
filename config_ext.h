@@ -1,6 +1,4 @@
-/*
- * config_ext.h - Extensão do módulo config para carregar de string
- */
+
 
 #ifndef CONFIG_EXT_H
 #define CONFIG_EXT_H

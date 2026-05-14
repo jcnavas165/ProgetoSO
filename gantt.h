@@ -1,27 +1,6 @@
 /*
  *projeto A SO
  *Autores: Julio Cesar Navas e Nathálya Chaves
- *
- * gantt.h - Interface do gerador do gráfico de Gantt
- *
- * O gráfico de Gantt mostra visualmente a execução das tarefas ao longo
- * do tempo, conforme especificado no requisito 2.1 e 2.5.
- *
- * Formato do gráfico (conforme seção 6.4 do livro do Prof. Maziero):
- *   - Eixo X: tempo (ticks do relógio)
- *   - Eixo Y: tarefas (ID menor na parte inferior, crescente para cima)
- *   - Blocos coloridos: tarefa executando (cor definida no arquivo de config)
- *   - Blocos vazios/brancos: tarefa na fila de prontos
- *   - Blocos pretos: tarefa suspensa
- *   - Ícones especiais: chegada (▶), término (■), sorteio (★)
- *
- * Implementamos o Gantt em SVG porque:
- *   - SVG é um arquivo texto (legível por humanos)
- *   - Funciona em qualquer browser sem instalar nada
- *   - Permite elementos gráficos ricos (cores, formas, texto)
- *   - Escalável sem perda de qualidade
- *
- * 
  */
 
 #ifndef GANTT_H

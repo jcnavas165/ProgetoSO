@@ -1,31 +1,8 @@
-/*
- *projeto A SO
- *Autores: Julio Cesar Navas e Nathálya Chaves
- * simulator.c - Implementação do motor da simulação
- *
- * Este é o arquivo mais complexo do projeto. Ele implementa toda a
- * lógica de execução da simulação tick a tick.
- *
- * Conceito fundamental: "tick"
- *   Um tick é a menor unidade de tempo do sistema. A cada tick:
- *   - O relógio avança 1
- *   - As tarefas que chegaram neste tick entram na fila de prontos
- *   - As tarefas executando consomem 1 unidade do seu tempo restante
- *   - O escalonador decide quem executa no próximo tick
- *
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "simulator.h"/* ── Funções auxiliares internas ──────────────────────────────────────────── */
 
-/*
- * find_task_by_id - Encontra ponteiro para TCB dado seu ID
- *
- * Retorna NULL se não encontrar. Usada para acessar tarefas pelo ID
- * (que o usuário vê) em vez do índice no array interno.
- */
 static TCB *find_task_by_id(SimState *sim, int task_id) {
     for (int i = 0; i < sim->num_tasks; i++) {
         if (sim->tasks[i].id == task_id) {
@@ -35,18 +12,6 @@ static TCB *find_task_by_id(SimState *sim, int task_id) {
     return NULL;
 }
 
-
-
-/* ── Implementação das funções públicas ───────────────────────────────────── */
-
-/*
- * sim_init - Inicializa o estado da simulação
- *
- * Decisão de implementação:
- *   Copiamos as tarefas da configuração para o estado da simulação.
- *   Trabalhamos com cópias para que a configuração original fique intacta
- *   (isso permite reiniciar a simulação sem recarregar o arquivo).
- */
 int sim_init(SimState *sim, SimConfig *config) {
     memset(sim, 0, sizeof(SimState));
 
@@ -58,13 +23,11 @@ int sim_init(SimState *sim, SimConfig *config) {
         return -1;
     }
 
-    /* Copia as tarefas da configuração para o estado da simulação */
     sim->num_tasks = config->num_tasks;
     for (int i = 0; i < sim->num_tasks; i++) {
         sim->tasks[i] = config->tasks[i]; /* Cópia completa do TCB */
     }
 
-    /* Inicializa CPUs: todas ligadas, sem tarefa, quantum zerado */
     sim->num_cpus = config->num_cpus;
     for (int c = 0; c < sim->num_cpus; c++) {
         sim->cpus[c].task_id     = NO_TASK;
@@ -90,16 +53,7 @@ int sim_init(SimState *sim, SimConfig *config) {
     return 0;
 }
 
-/*
- * sim_take_snapshot - Salva o estado atual no histórico
- *
- * Copia TODO o estado atual (tasks + CPUs + tick) para o próximo slot
- * do array de histórico.
- *
- * Decisão de implementação:
- *   Usamos memcpy para copiar o array de TCBs de uma vez só.
- *   Isso é mais eficiente do que copiar campo a campo.
- */
+
 void sim_take_snapshot(SimState *sim) {
     if (sim->history_count >= MAX_TICKS) {
         fprintf(stderr, "[AVISO] Histórico cheio! Simulação muito longa.\n");
@@ -118,9 +72,7 @@ void sim_take_snapshot(SimState *sim) {
     sim->history_pos = sim->history_count - 1;
 }
 
-/*
- * sim_restore_snapshot - Restaura um snapshot específico do histórico
- */
+
 void sim_restore_snapshot(SimState *sim, int pos) {
     if (pos < 0 || pos >= sim->history_count) {
         fprintf(stderr, "[ERRO] Posição de snapshot inválida: %d\n", pos);
@@ -135,7 +87,6 @@ void sim_restore_snapshot(SimState *sim, int pos) {
 
     sim->history_pos = pos;
 
-    /* Ao retroceder, "apaga" os snapshots futuros truncando o histórico */
     sim->history_count = pos + 1;
 
     /* Verifica se a simulação ainda está em andamento */
@@ -148,28 +99,13 @@ void sim_restore_snapshot(SimState *sim, int pos) {
     }
 }
 
-/*
- * sim_step - Executa um tick da simulação
- *
- * Esta é a função central. Cada chamada avança o relógio em 1 tick.
- *
- * Sequência de operações dentro de um tick:
- *
- *   FASE 1 - CHEGADA: Tarefas que chegam neste tick entram como READY
- *   FASE 2 - TÉRMINO: Tarefas que zeraram o tempo restante ficam FINISHED
- *   FASE 3 - QUANTUM: Tarefas que usaram todo o quantum voltam para READY
- *   FASE 4 - SCHED:   O escalonador decide quem executa nas CPUs
- *   FASE 5 - EXECUÇÃO: As tarefas escolhidas executam 1 tick (remaining--)
- *   FASE 6 - ESPERA:  Tarefas READY que não executaram acumulam wait_time
- *   FASE 7 - CPUS:    CPUs sem tarefa são desligadas se não há READY
- *   FASE 8 - SNAPSHOT: Salva o estado atual no histórico
- */
+
 int sim_step(SimState *sim) {
     if (sim->finished) return 1;
 
     int tick = sim->current_tick;
 
-    /* ── FASE 1: Chegada de novas tarefas ────────────────────────────────── */
+    /* ── FASE 1: Chegada de novas tarefas  */
     for (int i = 0; i < sim->num_tasks; i++) {
         TCB *t = &sim->tasks[i];
         if (t->state == TASK_NEW && t->arrival == tick) {
@@ -179,7 +115,7 @@ int sim_step(SimState *sim) {
         }
     }
 
-    /* ── FASE 2: Verifica tarefas que terminaram no tick ANTERIOR ─────────
+    /* ── FASE 2: Verifica tarefas que terminaram no tick ANTERIOR 
      * (uma tarefa que teve remaining=0 após o último tick está concluída) */
     for (int i = 0; i < sim->num_tasks; i++) {
         TCB *t = &sim->tasks[i];
@@ -202,7 +138,7 @@ int sim_step(SimState *sim) {
         }
     }
 
-    /* ── FASE 3: Verifica quantum esgotado ──────────────────────────────── */
+    /* ── FASE 3: Verifica quantum esgotado  */
     for (int c = 0; c < sim->num_cpus; c++) {
         int tid = sim->cpus[c].task_id;
         if (tid == NO_TASK) continue;
@@ -224,7 +160,7 @@ int sim_step(SimState *sim) {
         }
     }
 
-    /* ── FASE 4: Escalonamento ──────────────────────────────────────────── */
+    /* ── FASE 4: Escalonamento  */
     SchedContext ctx;
     ctx.tasks       = sim->tasks;
     ctx.num_tasks   = sim->num_tasks;
@@ -238,15 +174,7 @@ int sim_step(SimState *sim) {
     SchedResult sched_res;
     sim->scheduler(&ctx, &sched_res);
 
-    /* ── FASE 5: Aplica a decisão do escalonador ────────────────────────── */
-    /*
-     * Para cada CPU, verifica se a tarefa mudou.
-     * Se mudou: a tarefa anterior vai para READY (se não terminou),
-     *           a nova tarefa vai para RUNNING.
-     */
-
-    /* Primeiro: coloca todas as tarefas atualmente RUNNING de volta em READY
-     * se elas não foram escolhidas para continuar */
+    /* ── FASE 5: Aplica a decisão do escalonador  */
     for (int c = 0; c < sim->num_cpus; c++) {
         int old_tid = sim->cpus[c].task_id;
         int new_tid = sched_res.next_task_id[c];
@@ -322,7 +250,7 @@ int sim_step(SimState *sim) {
         }
     }
 
-    /* ── FASE 6: Executa 1 tick (decrementa tempo restante e quantum) ───── */
+    /* ── FASE 6: Executa 1 tick (decrementa tempo restante e quantum)  */
     for (int c = 0; c < sim->num_cpus; c++) {
         int tid = sim->cpus[c].task_id;
         if (tid == NO_TASK) continue;
@@ -334,14 +262,14 @@ int sim_step(SimState *sim) {
         sim->cpus[c].quantum_used++; /* Avança o contador de quantum */
     }
 
-    /* ── FASE 6b: Acumula wait_time para tarefas prontas sem CPU ─────────── */
+    /* ── FASE 6b: Acumula wait_time para tarefas prontas sem CPU  */
     for (int i = 0; i < sim->num_tasks; i++) {
         if (sim->tasks[i].state == TASK_READY) {
             sim->tasks[i].wait_time++;
         }
     }
 
-    /* ── FASE 7: Verifica se a simulação terminou ─────────────────────────── */
+    /* ── FASE 7: Verifica se a simulação terminou  */
     int all_done = 1;
     for (int i = 0; i < sim->num_tasks; i++) {
         if (sim->tasks[i].state != TASK_FINISHED) {
@@ -350,7 +278,7 @@ int sim_step(SimState *sim) {
         }
     }
 
-    /* ── FASE 8: Avança o relógio e salva snapshot ──────────────────────── */
+    /* ── FASE 8: Avança o relógio e salva snapshot  */
     sim->current_tick++;
     sim_take_snapshot(sim);
 
