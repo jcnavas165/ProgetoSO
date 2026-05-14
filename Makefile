@@ -1,5 +1,5 @@
-#projeto A SO
-#Autores: Julio Cesar Navas e Nathálya Chaves 
+# projeto A SO
+# Autores: Julio Cesar Navas e Nathálya Chaves 
 
 CC     = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g `pkg-config --cflags gtk+-3.0`
@@ -21,15 +21,16 @@ SRCS = main.c \
 OBJS = $(SRCS:.c=.o)
 
 all: checar_deps $(TARGET)
+	@clear
 	@echo ""
 	@echo "  Compilado com sucesso!  Execute: ./simulador"
-	
-	
+	@echo ""
+
 checar_deps:
 	@echo "Verificando dependências..."
 	@if ! pkg-config --exists gtk+-3.0 2>/dev/null; then \
 		echo "GTK nao encontrado. Instalando..."; \
-		sudo apt-get update -qq && sudo apt-get install -y libgtk-3-dev; \
+		sudo apt-get update -qq && sudo apt-get install -y libgtk-3-dev -qq; \
 	else \
 		echo "GTK: OK"; \
 	fi
@@ -42,10 +43,10 @@ checar_deps:
 	@echo ""
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
+	@$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@ 2>/dev/null
 
 main.o:          main.c          task.h config.h scheduler.h simulator.h gantt.h gui_gantt.h
 task.o:          task.c          task.h
@@ -60,14 +61,17 @@ modify_dialog.o: modify_dialog.c modify_dialog.h simulator.h task.h
 
 run: all
 	@if [ ! -f config_exemplo.txt ]; then ./simulador --gerar-config; fi
-	./$(TARGET) 2>/dev/null
-	./simulador config_exemplo.txt
+	@clear
+	@./$(TARGET) config_exemplo.txt
+
 clean:
-	rm -f $(OBJS) $(TARGET) *.svg
+	@clear
+	@rm -f $(OBJS) $(TARGET) *.svg
 	@echo "Limpo!"
 
 instalar:
-	sudo apt-get update
-	sudo apt-get install -y libgtk-3-dev poppler-utils
+	@clear
+	@sudo apt-get update -qq
+	@sudo apt-get install -y libgtk-3-dev poppler-utils -qq
 
 .PHONY: all checar_deps run clean instalar
