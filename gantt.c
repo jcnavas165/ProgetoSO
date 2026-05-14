@@ -1,7 +1,20 @@
 /*
  *projeto A SO
  *Autores: Julio Cesar Navas e Nathálya Chaves
-*/
+ *
+ * gantt.c - Implementação do gerador do gráfico de Gantt em SVG
+ *
+ * SVG (Scalable Vector Graphics) é um formato de imagem vetorial baseado
+ * em XML. Cada elemento do gráfico é descrito como uma tag XML, por exemplo:
+ *   <rect x="100" y="50" width="28" height="36" fill="#FF4444"/>
+ *   <text x="50" y="70">Tarefa 1</text>
+ *
+ * Para gerar o SVG, construímos o arquivo linha por linha com fprintf().
+ * Não precisamos de nenhuma biblioteca externa - apenas a libc padrão.
+ *
+ * Autor: Projeto A - Simulador SO Multitarefa
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include "gantt.h"
@@ -282,10 +295,10 @@ int gantt_generate_svg(const SimState *sim, const char *filename) {
                              "&#9654;", 10, "start", "#00AA00");
                 }
                 /* Ícone de término: quadrado vermelho */
-                if (evt == EVENT_FINISH) {
-                    svg_text(f, x + 2, y + GANTT_CELL_H - 4,
-                             "&#9632;", 10, "start", "#CC0000");
-                }
+                    if (evt == EVENT_FINISH && tick == t->finish_tick) {
+        svg_text(f, x + 2, y + GANTT_CELL_H - 4,
+                 "&#9632;", 10, "start", "#CC0000");
+    }
                 /* Ícone de sorteio: estrela ★ */
                 if (evt == EVENT_LOTTERY) {
                     svg_text(f, x + GANTT_CELL_W / 2, y + 12,

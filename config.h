@@ -7,10 +7,10 @@
 
 #include "task.h"
 
-//Comprimento máximo de uma linha no arquivo de configuração 
+//Comprimento máximo de uma linha no arquivo de configuração */
 #define MAX_LINE_LEN 512
 
-// Comprimento máximo do nome do algoritmo de escalonamento 
+// Comprimento máximo do nome do algoritmo de escalonamento */
 #define MAX_ALGO_NAME 32
 
 // SchedAlgo - Enumeração dos algoritmos de escalonamento suportados

@@ -30,6 +30,16 @@ typedef struct {
     SimState   sim;
     int        config_carregada;  // 0 = sem config ainda 
 
+    // Widgets que precisamos acessar nos callbacks 
+    GtkWidget *janela;
+    GtkWidget *area;
+    GtkWidget *lbl_status;
+    GtkWidget *btn_avancar;
+    GtkWidget *btn_retroceder;
+    GtkWidget *btn_tudo;
+    GtkWidget *btn_salvar;
+    GtkWidget *btn_modificar;    // modificar tarefa em execução
+    GtkWidget *btn_nova_sim;     //iniciar nova simulação
 } AppState;
 
 //Utilitários 
@@ -518,12 +528,27 @@ void gui_run(const char *config_file) {
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
                        FALSE, FALSE, 0);
 
-    //Área de desenho do Gantt 
-    app->area = gtk_drawing_area_new();
-    gtk_widget_set_size_request(app->area, 820, 440);
-    g_signal_connect(app->area, "draw", G_CALLBACK(cb_desenhar), app);
-    gtk_box_pack_start(GTK_BOX(vbox), app->area, TRUE, TRUE, 0);
+    // ── ÁREA ROLÁVEL DO GANTT ──────────────────────────────────────────────
 
+// Calcula o tamanho necessário para o Gantt
+int largura_necessaria = G_MARGEM_E + (MAX_TICKS * G_CELL_W) + 20;
+int altura_necessaria  = G_MARGEM_T + (MAX_TASKS * G_CELL_H) + 55;
+
+// Cria a janela com rolagem
+GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                GTK_POLICY_AUTOMATIC,  /* Barra horizontal */
+                                GTK_POLICY_AUTOMATIC); /* Barra vertical */
+gtk_widget_set_size_request(scrolled, 820, 440);  /* Tamanho visível */
+gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
+
+// Área de desenho com tamanho dinâmico
+app->area = gtk_drawing_area_new();
+gtk_widget_set_size_request(app->area, largura_necessaria, altura_necessaria);
+g_signal_connect(app->area, "draw", G_CALLBACK(cb_desenhar), app);
+
+// Adiciona a área dentro do container com rolagem
+gtk_container_add(GTK_CONTAINER(scrolled), app->area);
     //Separador 
     gtk_box_pack_start(GTK_BOX(vbox),
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),

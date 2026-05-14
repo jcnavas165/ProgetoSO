@@ -1,4 +1,12 @@
-
+/*
+ * config.c - Implementação da leitura e parse do arquivo de configuração
+ *
+ * O parse segue o formato especificado no documento:
+ *   Linha 1: algoritmo;quantum;qtde_cpus
+ *   Linha N: id;cor;ingresso;duracao;prioridade[;eventos]
+ *
+ * Autor: Projeto A - Simulador SO Multitarefa
+ */
 
 #include <stdio.h>
 #include <stdlib.h>

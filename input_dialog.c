@@ -1,6 +1,19 @@
 /*
  *projeto A SO
  *Autores: Julio Cesar Navas e Nathálya Chaves
+ *
+ * input_dialog.c - Implementação dos diálogos de importação e entrada manual
+ *
+ * CONCEITOS GTK USADOS AQUI:
+ *
+ *   GtkFileChooserDialog - janela de escolha de arquivo do sistema
+ *   GtkDialog            - janela de diálogo com botões OK/Cancelar
+ *   GtkGrid              - organiza widgets em grade (linhas e colunas)
+ *   GtkEntry             - campo de texto para o usuário digitar
+ *   GtkSpinButton        - campo numérico com setas +/-
+ *   GtkComboBoxText      - lista suspensa de opções
+ *   GtkScrolledWindow    - área rolável (para quando há muitas tarefas)
+ *   GtkMessageDialog     - janela de mensagem de erro/aviso
  */
 
 #include <gtk/gtk.h>
@@ -13,7 +26,24 @@
 #include "config.h"
 #include "task.h"
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * PARTE 1 — LEITURA DE ARQUIVO TXT
+ * ══════════════════════════════════════════════════════════════════════════ */
 
+/*
+ * input_read_txt - Lê arquivo .txt e converte para SimConfig
+ *
+ * Estratégia:
+ *   1. Abre o arquivo
+ *   2. Lê o conteúdo inteiro para uma string na memória (com malloc)
+ *   3. Chama config_load_from_string para fazer o parse
+ *   4. Libera a memória
+ *
+ * Por que ler tudo de uma vez?
+ *   config_load_from_string precisa da string completa. Poderíamos
+ *   ler linha por linha, mas ler tudo de uma vez é mais simples e
+ *   o arquivo de config é sempre pequeno (< 10 KB).
+ */
 int input_read_txt(const char *filepath, SimConfig *cfg) {
     /* Abre o arquivo em modo leitura de texto */
     FILE *f = fopen(filepath, "r");
@@ -59,7 +89,27 @@ int input_read_txt(const char *filepath, SimConfig *cfg) {
     return resultado;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * PARTE 2 — LEITURA DE ARQUIVO PDF
+ * ══════════════════════════════════════════════════════════════════════════ */
 
+/*
+ * input_read_pdf - Extrai texto do PDF com pdftotext e faz parse
+ *
+ * Como funciona:
+ *   1. Usa pdftotext (ferramenta externa do pacote poppler-utils)
+ *      para converter o PDF em texto simples
+ *   2. Lê o texto gerado como se fosse um .txt normal
+ *   3. Apaga o arquivo de texto temporário gerado
+ *
+ * pdftotext é chamado via system() que executa um comando no shell.
+ * O comando é: pdftotext arquivo.pdf arquivo_temp.txt
+ *
+ * IMPORTANTE: O PDF deve conter o texto no formato:
+ *   algoritmo;quantum;cpus
+ *   id;cor;chegada;duracao;prioridade
+ *   ... (mesmo formato do .txt)
+ */
 int input_read_pdf(const char *filepath, SimConfig *cfg) {
     /* Nome do arquivo temporário onde o texto extraído será salvo */
     char txt_temp[512];
@@ -91,7 +141,16 @@ int input_read_pdf(const char *filepath, SimConfig *cfg) {
     return resultado;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * PARTE 3 — DIÁLOGO DE ESCOLHA DE ARQUIVO (TXT)
+ * ══════════════════════════════════════════════════════════════════════════ */
 
+/*
+ * mostrar_erro - Exibe uma janela de erro para o usuário
+ *
+ * GtkMessageDialog é a forma padrão do GTK de mostrar mensagens.
+ * gtk_dialog_run() trava a execução até o usuário fechar a janela.
+ */
 static void mostrar_erro(GtkWindow *parent, const char *mensagem) {
     GtkWidget *dlg = gtk_message_dialog_new(
         parent,                    /* janela pai */
@@ -104,7 +163,14 @@ static void mostrar_erro(GtkWindow *parent, const char *mensagem) {
     gtk_widget_destroy(dlg);          /* libera o widget da memória */
 }
 
-
+/*
+ * input_show_file_chooser - Abre o explorador de arquivos do sistema
+ *
+ * GtkFileChooserDialog é a janela padrão de "Abrir arquivo" do GNOME.
+ * Configuramos filtros para só mostrar .txt e .pdf.
+ *
+ * GTK_FILE_CHOOSER_ACTION_OPEN = modo de ABERTURA (não de salvar)
+ */
 int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     /* Cria o diálogo de escolha de arquivo */
     GtkWidget *dlg = gtk_file_chooser_dialog_new(
@@ -129,6 +195,12 @@ int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     gtk_file_filter_add_pattern(filtro_pdf, "*.PDF"); /* maiúsculas também */
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_pdf);
 
+    /*filtro csv*/
+    GtkFileFilter *filtro_csv = gtk_file_filter_new();
+    gtk_file_filter_set_name(filtro_csv, "Aarquivo CSV (*.csv)");
+    gtk_file_filter_add_pattern(filtro_csv, "*.csv");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_csv);
+
     /* ── Filtro "todos os arquivos" ────────────────────────────────────── */
     GtkFileFilter *filtro_todos = gtk_file_filter_new();
     gtk_file_filter_set_name(filtro_todos, "Todos os arquivos (*.*)");
@@ -150,18 +222,28 @@ int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
 
     if (!filepath) return -1;
 
-    /* Decide se é TXT ou PDF baseado na extensão */
-    int resultado = -1;
-    size_t len = strlen(filepath);
+    /* Decide o tipo de arquivo baseado na extensão */
+int resultado = -1;
+size_t len = strlen(filepath);
 
-    if (len > 4 &&
-        (strcasecmp(filepath + len - 4, ".pdf") == 0)) {
-        /* É um PDF: usa o extrator */
-        resultado = input_read_pdf(filepath, cfg);
-    } else {
-        /* Assume TXT para qualquer outra extensão */
-        resultado = input_read_txt(filepath, cfg);
-    }
+if (len > 4 && (strcasecmp(filepath + len - 4, ".pdf") == 0)) {
+    /* Arquivo PDF: extrai texto */
+    resultado = input_read_pdf(filepath, cfg);
+} 
+else if (len > 4 && (strcasecmp(filepath + len - 4, ".csv") == 0)) {
+    /* Arquivo CSV: lê como texto (mesmo formato do TXT) */
+    printf("[INFO] Lendo arquivo CSV: %s\n", filepath);
+    resultado = input_read_txt(filepath, cfg);
+}
+else if (len > 4 && (strcasecmp(filepath + len - 4, ".txt") == 0)) {
+    /* Arquivo TXT: leitura normal */
+    printf("[INFO] Lendo arquivo TXT: %s\n", filepath);
+    resultado = input_read_txt(filepath, cfg);
+    /* Qualquer outra extensão: tenta ler como texto */
+    printf("[INFO] Tentando ler como texto: %s\n", filepath);
+    resultado = input_read_txt(filepath, cfg);
+}
+
 
     /* g_free() libera memória alocada pelo GTK (não usar free() aqui!) */
     g_free(filepath);
@@ -180,20 +262,36 @@ int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     return resultado;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * PARTE 4 — DIÁLOGO DE ENTRADA MANUAL
+ * ══════════════════════════════════════════════════════════════════════════ */
 
+/* Número máximo de tarefas que o formulário suporta */
 #define MAX_FORM_TASKS 20
 
-
+/*
+ * TarefaRow - Representa uma linha do formulário para uma tarefa
+ *
+ * Cada linha tem 5 widgets de entrada (um por campo).
+ * Guardamos os ponteiros para poder ler os valores quando o
+ * usuário clicar em OK.
+ */
 typedef struct {
-    GtkWidget *entry_id;        
-    GtkWidget *entry_cor;       
-    GtkWidget *spin_chegada;    
-    GtkWidget *spin_duracao;    
-    GtkWidget *spin_prioridade; 
-    GtkWidget *btn_remover;     
+    GtkWidget *entry_id;        /* Campo: ID (número) */
+    GtkWidget *entry_cor;       /* Campo: Cor (hex RRGGBB) */
+    GtkWidget *spin_chegada;    /* Campo: Tick de chegada */
+    GtkWidget *spin_duracao;    /* Campo: Duração */
+    GtkWidget *spin_prioridade; /* Campo: Prioridade */
+    GtkWidget *btn_remover;     /* Botão para remover esta linha */
 } TarefaRow;
 
-
+/*
+ * FormState - Estado do formulário de entrada manual
+ *
+ * Agrupa todos os widgets do formulário que precisam ser acessados
+ * pelos callbacks de botão. Em GTK, passamos este ponteiro via
+ * gpointer data nos g_signal_connect.
+ */
 typedef struct {
     GtkWidget  *combo_algo;      /* Lista suspensa: SRTF / PRIOP */
     GtkWidget  *spin_quantum;    /* Spin: quantum */
@@ -204,7 +302,17 @@ typedef struct {
     GtkWidget  *dialogo;         /* Referência ao diálogo principal */
 } FormState;
 
-
+/*
+ * criar_cabecalho_tarefas - Adiciona a linha de cabeçalho no grid
+ *
+ * O grid de tarefas tem:
+ *   Coluna 0: ID
+ *   Coluna 1: Cor
+ *   Coluna 2: Chegada
+ *   Coluna 3: Duração
+ *   Coluna 4: Prioridade
+ *   Coluna 5: Botão remover
+ */
 static void criar_cabecalho_tarefas(GtkGrid *grid) {
     const char *labels[] = {"ID", "Cor (hex)", "Chegada", "Duração", "Prioridade", ""};
     for (int col = 0; col < 6; col++) {
@@ -218,7 +326,15 @@ static void criar_cabecalho_tarefas(GtkGrid *grid) {
     }
 }
 
-/
+/*
+ * cb_remover_linha - Callback do botão "X" de cada linha de tarefa
+ *
+ * Quando o usuário clica no X de uma linha, precisamos:
+ *   1. Encontrar qual linha corresponde a este botão
+ *   2. Remover os widgets desta linha do grid
+ *   3. Mover as linhas seguintes uma posição para cima
+ *   4. Decrementar o contador de linhas
+ */
 static void cb_remover_linha(GtkWidget *btn, gpointer data) {
     FormState *form = (FormState *)data;
 
@@ -232,7 +348,8 @@ static void cb_remover_linha(GtkWidget *btn, gpointer data) {
     }
     if (linha_removida < 0) return; /* segurança */
 
-    
+    /* Remove os 6 widgets desta linha do grid */
+    /* Linha no grid = linha_removida + 1 (porque linha 0 é o cabeçalho) */
     GtkWidget *widgets[6] = {
         form->linhas[linha_removida].entry_id,
         form->linhas[linha_removida].entry_cor,
@@ -252,7 +369,12 @@ static void cb_remover_linha(GtkWidget *btn, gpointer data) {
     form->num_linhas--;
 }
 
-
+/*
+ * cb_adicionar_linha - Adiciona uma nova linha de tarefa no formulário
+ *
+ * Cria 5 widgets de entrada + 1 botão de remover e os anexa ao grid.
+ * A linha é posicionada logo após o cabeçalho e as linhas existentes.
+ */
 static void cb_adicionar_linha(GtkWidget *btn_add, gpointer data) {
     (void)btn_add;
     FormState *form = (FormState *)data;
@@ -318,7 +440,25 @@ static void cb_adicionar_linha(GtkWidget *btn_add, gpointer data) {
     gtk_widget_show_all(form->grid_tarefas);
 }
 
-
+/*
+ * input_show_manual_dialog - Cria e exibe o formulário de entrada manual
+ *
+ * Estrutura visual do diálogo:
+ *
+ *   ┌─────────────────────────────────────────┐
+ *   │ Algoritmo: [SRTF ▼]                     │
+ *   │ Quantum:   [4 ▲▼]   CPUs: [2 ▲▼]       │
+ *   │─────────────────────────────────────────│
+ *   │ Tarefas:                                │
+ *   │ ID  Cor     Chegada  Duração  Prior.    │
+ *   │ [1] [FF4444] [0 ▲▼] [5 ▲▼]  [3 ▲▼] [✕]│
+ *   │ [2] [44FF44] [2 ▲▼] [8 ▲▼]  [5 ▲▼] [✕]│
+ *   │                                         │
+ *   │         [+ Adicionar Tarefa]            │
+ *   │─────────────────────────────────────────│
+ *   │              [Cancelar]  [OK]           │
+ *   └─────────────────────────────────────────┘
+ */
 int input_show_manual_dialog(GtkWindow *parent, SimConfig *cfg) {
     /* ── Cria o diálogo principal ──────────────────────────────────────
      * GTK_DIALOG_MODAL = bloqueia a janela pai enquanto aberto

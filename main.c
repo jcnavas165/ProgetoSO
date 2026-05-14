@@ -1,7 +1,17 @@
 /*
  *projeto A SO
  *Autores: Julio Cesar Navas e Nathálya Chaves
-*/
+ *
+ * main.c - Ponto de entrada do Simulador de SO Multitarefa
+ *
+ * Modos de execução:
+ *   ./simulador                    → abre janela GTK (sem config = pede para importar)
+ *   ./simulador config.txt         → abre janela GTK com arquivo carregado
+ *   ./simulador --sem-gui config.txt  → só terminal
+ *   ./simulador --gerar-config     → cria arquivo de exemplo
+ *
+ * Autor: Projeto A - Simulador SO Multitarefa
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,7 +63,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    
+    /*
+     * MODO GTK (padrão):
+     * gui_run cuida de tudo:
+     *   - Se um arquivo foi passado como argumento, carrega automaticamente
+     *   - Se não, exibe a tela de boas-vindas com botões "Importar" e "Manual"
+     */
     const char *config_inicial = (argc >= 2) ? argv[1] : NULL;
     gui_run(config_inicial);
 
