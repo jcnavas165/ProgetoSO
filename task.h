@@ -36,13 +36,13 @@
  *            └──────────┘  (preempção / quantum expirado)
  *                 │
  *                 ▼
- *            SUSPENDED  (bloqueada esperando algum recurso - será usado no Projeto B)
+ *            SUSPENDED  
  */
 typedef enum {
     TASK_NEW       = 0,  /* Tarefa criada mas ainda não chegou no sistema */
     TASK_READY     = 1,  /* Tarefa na fila de prontos, aguardando CPU */
     TASK_RUNNING   = 2,  /* Tarefa atualmente executando em alguma CPU */
-    TASK_SUSPENDED = 3,  /* Tarefa suspensa (I/O, mutex, etc.) - Projeto B */
+    TASK_SUSPENDED = 3,  /* Tarefa suspensa */
     TASK_FINISHED  = 4   /* Tarefa concluiu sua execução */
 } TaskState;
 
