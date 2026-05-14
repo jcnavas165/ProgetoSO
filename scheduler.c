@@ -14,7 +14,6 @@
  *   Por exemplo, com SRTF e 3 CPUs, escolhemos as 3 tarefas com menor
  *   tempo restante para preencher as 3 CPUs.
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <stdio.h>

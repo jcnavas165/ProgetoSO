@@ -10,7 +10,6 @@
  *   ./simulador --sem-gui config.txt  → só terminal
  *   ./simulador --gerar-config     → cria arquivo de exemplo
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <stdio.h>

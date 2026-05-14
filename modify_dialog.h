@@ -21,7 +21,6 @@
  *     → Pode modificar prioridade. Tempo restante não muda
  *       enquanto suspensa. Mensagem informativa.
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #ifndef MODIFY_DIALOG_H

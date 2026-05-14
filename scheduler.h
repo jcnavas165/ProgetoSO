@@ -22,7 +22,6 @@
  * Para PRIOP, antes dos critérios acima vem (requisito 4.4):
  *   0. Maior prioridade estática
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #ifndef SCHEDULER_H

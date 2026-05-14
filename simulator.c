@@ -13,7 +13,6 @@
  *   - As tarefas executando consomem 1 unidade do seu tempo restante
  *   - O escalonador decide quem executa no próximo tick
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <stdio.h>

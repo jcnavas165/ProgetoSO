@@ -14,7 +14,6 @@
  *      Uma janela com campos de formulário permite digitar o algoritmo,
  *      quantum, CPUs e cada tarefa sem precisar criar um arquivo.
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #ifndef INPUT_DIALOG_H

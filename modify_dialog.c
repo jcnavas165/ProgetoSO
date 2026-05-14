@@ -11,7 +11,6 @@
  * Combo de estado disponível para READY / RUNNING / SUSPENDED:
  *   → Pronta, Suspensa, Executando, Concluída (FINISHED)
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <gtk/gtk.h>

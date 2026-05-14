@@ -8,7 +8,6 @@
  * Cada função é responsável por uma operação específica e bem definida,
  * seguindo o princípio de responsabilidade única.
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #include <stdio.h>

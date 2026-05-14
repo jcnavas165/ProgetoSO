@@ -18,7 +18,6 @@
  *   4. Atualiza CPUs, estados das tarefas, registra histórico
  *   5. Avança o quantum de cada tarefa rodando
  *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #ifndef SIMULATOR_H

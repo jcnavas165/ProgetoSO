@@ -21,7 +21,7 @@
  *   - Permite elementos gráficos ricos (cores, formas, texto)
  *   - Escalável sem perda de qualidade
  *
- * Autor: Projeto A - Simulador SO Multitarefa
+ * 
  */
 
 #ifndef GANTT_H
