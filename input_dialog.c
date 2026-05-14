@@ -142,7 +142,7 @@ int input_read_pdf(const char *filepath, SimConfig *cfg) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * PARTE 3 — DIÁLOGO DE ESCOLHA DE ARQUIVO (TXT ou PDF)
+ * PARTE 3 — DIÁLOGO DE ESCOLHA DE ARQUIVO (TXT)
  * ══════════════════════════════════════════════════════════════════════════ */
 
 /*
@@ -174,7 +174,7 @@ static void mostrar_erro(GtkWindow *parent, const char *mensagem) {
 int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     /* Cria o diálogo de escolha de arquivo */
     GtkWidget *dlg = gtk_file_chooser_dialog_new(
-        "Importar configuração (TXT ou PDF)",   /* título da janela */
+        "Importar configuração (TXT)",   /* título da janela */
         parent,                                  /* janela pai */
         GTK_FILE_CHOOSER_ACTION_OPEN,            /* modo: abrir arquivo */
         "_Cancelar", GTK_RESPONSE_CANCEL,        /* botão Cancelar */

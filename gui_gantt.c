@@ -131,7 +131,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
 
         cairo_set_font_size(cr, 13);
         cairo_set_source_rgb(cr, 0.4, 0.4, 0.5);
-        const char *msg2 = "Use 'Importar TXT/PDF' ou 'Entrada Manual' acima";
+        const char *msg2 = "Use 'Importar TXT ' ou 'Entrada Manual' acima";
         cairo_text_extents(cr, msg2, &ext);
         cairo_move_to(cr, (W - ext.width)/2, H/2 + 14);
         cairo_show_text(cr, msg2);
@@ -515,11 +515,11 @@ void gui_run(const char *config_file) {
     gtk_container_set_border_width(GTK_CONTAINER(barra_topo), 8);
     gtk_box_pack_start(GTK_BOX(vbox), barra_topo, FALSE, FALSE, 0);
 
-    GtkWidget *btn_importar = gtk_button_new_with_label("📂 Importar TXT / PDF");
+    GtkWidget *btn_importar = gtk_button_new_with_label(" Importar TXT");
     g_signal_connect(btn_importar, "clicked", G_CALLBACK(cb_importar), app);
     gtk_box_pack_start(GTK_BOX(barra_topo), btn_importar, FALSE, FALSE, 0);
 
-    GtkWidget *btn_manual = gtk_button_new_with_label("✏ Entrada Manual");
+    GtkWidget *btn_manual = gtk_button_new_with_label(" Entrada Manual");
     g_signal_connect(btn_manual, "clicked", G_CALLBACK(cb_manual), app);
     gtk_box_pack_start(GTK_BOX(barra_topo), btn_manual, FALSE, FALSE, 0);
 
@@ -544,22 +544,22 @@ void gui_run(const char *config_file) {
     gtk_container_set_border_width(GTK_CONTAINER(barra_bot), 8);
     gtk_box_pack_start(GTK_BOX(vbox), barra_bot, FALSE, FALSE, 0);
 
-    app->btn_retroceder = gtk_button_new_with_label("◀ Retroceder");
+    app->btn_retroceder = gtk_button_new_with_label("< Retroceder");
     g_signal_connect(app->btn_retroceder, "clicked",
                      G_CALLBACK(cb_retroceder), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_retroceder, FALSE, FALSE, 0);
 
-    app->btn_avancar = gtk_button_new_with_label("Avançar ▶");
+    app->btn_avancar = gtk_button_new_with_label("Avançar >");
     g_signal_connect(app->btn_avancar, "clicked",
                      G_CALLBACK(cb_avancar), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_avancar, FALSE, FALSE, 0);
 
-    app->btn_tudo = gtk_button_new_with_label("⏩ Executar tudo");
+    app->btn_tudo = gtk_button_new_with_label("-->> Executar tudo");
     g_signal_connect(app->btn_tudo, "clicked",
                      G_CALLBACK(cb_executar_tudo), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_tudo, FALSE, FALSE, 0);
 
-    app->btn_salvar = gtk_button_new_with_label("💾 Salvar SVG");
+    app->btn_salvar = gtk_button_new_with_label(" Salvar SVG");
     g_signal_connect(app->btn_salvar, "clicked",
                      G_CALLBACK(cb_salvar_svg), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_salvar, FALSE, FALSE, 0);
@@ -570,13 +570,13 @@ void gui_run(const char *config_file) {
                        FALSE, FALSE, 4);
 
     //botão modificar tarefa
-    app->btn_modificar = gtk_button_new_with_label("✏ Modificar Tarefa");
+    app->btn_modificar = gtk_button_new_with_label(" Modificar Tarefa");
     g_signal_connect(app->btn_modificar, "clicked",
                      G_CALLBACK(cb_modificar_tarefa), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_modificar, FALSE, FALSE, 0);
 
     //Botão: Nova Simulação 
-    app->btn_nova_sim = gtk_button_new_with_label("🔄 Nova Simulação");
+    app->btn_nova_sim = gtk_button_new_with_label(" Nova Simulação");
     g_signal_connect(app->btn_nova_sim, "clicked",
                      G_CALLBACK(cb_nova_simulacao), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_nova_sim, FALSE, FALSE, 0);
