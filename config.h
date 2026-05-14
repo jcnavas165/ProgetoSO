@@ -1,18 +1,5 @@
 /*
  * config.h - Definições para leitura e armazenamento da configuração da simulação
- *
- * O arquivo de configuração tem o seguinte formato (conforme especificação):
- *
- *   Linha 1: algoritmo_escalonamento;quantum;qtde_cpus
- *   Linha 2+: id;cor;ingresso;duracao;prioridade;lista_eventos
- *
- * Exemplo:
- *   SRTF;4;2
- *   1;FF0000;0;10;3
- *   2;00FF00;2;6;5
- *   3;0000FF;4;8;1
- *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
 #ifndef CONFIG_H
@@ -20,10 +7,10 @@
 
 #include "task.h"
 
-/* Comprimento máximo de uma linha no arquivo de configuração */
+//Comprimento máximo de uma linha no arquivo de configuração */
 #define MAX_LINE_LEN 512
 
-/* Comprimento máximo do nome do algoritmo de escalonamento */
+// Comprimento máximo do nome do algoritmo de escalonamento */
 #define MAX_ALGO_NAME 32
 
 /*
