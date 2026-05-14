@@ -2,26 +2,9 @@
  *projeto A SO
  *Autores: Julio Cesar Navas e Nathálya Chaves
  * gui_gantt.c - Janela GTK principal com Gantt, importação e entrada manual
- *
- * Estrutura da janela:
- *
- *   ┌──────────────────────────────────────────────────────┐
- *   │  [Importar TXT/PDF]  [Entrada Manual]  [Salvar SVG]  │  ← barra de ações
- *   ├──────────────────────────────────────────────────────┤
- *   │                                                      │
- *   │   GRÁFICO DE GANTT (GtkDrawingArea + Cairo)          │  ← canvas principal
- *   │                                                      │
- *   ├──────────────────────────────────────────────────────┤
- *   │  [◀ Retroceder]  [Avançar ▶]  [⏩ Tudo]   Tick: X  │  ← controles
- *   └──────────────────────────────────────────────────────┘
- *
- * Quando nenhuma configuração foi carregada ainda, o canvas exibe
- * uma tela de boas-vindas com instruções.
- *
- * Autor: Projeto A - Simulador SO Multitarefa
  */
 
-#include <gtk/gtk.h>
+#include <gtk/gtk.h> // Biblioteca principal do GTK 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,23 +14,23 @@
 #include "config.h"
 #include "task.h"
 #include "input_dialog.h"
-#include "modify_dialog.h"   /* diálogo de modificação de tarefas */
+#include "modify_dialog.h"   // diálogo de modificação de tarefas 
 
-/* Dimensões do Gantt */
+//Dimensões do Gantt 
 #define G_MARGEM_E  90
 #define G_MARGEM_T  45
 #define G_MARGEM_B  55
 #define G_CELL_W    42
 #define G_CELL_H    44
 
-/* ── Estado global da janela ─────────────────────────────────────────────── */
+// Estado global da janela 
 typedef struct {
-    /* Simulação */
+    //Simulação 
     SimConfig  config;
     SimState   sim;
-    int        config_carregada;  /* 0 = sem config ainda */
+    int        config_carregada;  // 0 = sem config ainda 
 
-    /* Widgets que precisamos acessar nos callbacks */
+    // Widgets que precisamos acessar nos callbacks 
     GtkWidget *janela;
     GtkWidget *area;
     GtkWidget *lbl_status;
@@ -55,13 +38,13 @@ typedef struct {
     GtkWidget *btn_retroceder;
     GtkWidget *btn_tudo;
     GtkWidget *btn_salvar;
-    GtkWidget *btn_modificar;    /* novo: modificar tarefa em execução */
-    GtkWidget *btn_nova_sim;     /* novo: iniciar nova simulação */
+    GtkWidget *btn_modificar;    // modificar tarefa em execução
+    GtkWidget *btn_nova_sim;     //iniciar nova simulação
 } AppState;
 
-/* ── Utilitários ─────────────────────────────────────────────────────────── */
+//Utilitários 
 
-/* Converte cor hex "RRGGBB" para doubles 0.0-1.0 para Cairo */
+// Converte cor hex RRGGBB para doubles 0.0-1.0 para Cairo 
 static void hex_para_rgb(const char *hex, double *r, double *g, double *b) {
     unsigned int ri, gi, bi;
     const char *h = (hex[0] == '#') ? hex+1 : hex;
@@ -72,7 +55,7 @@ static void hex_para_rgb(const char *hex, double *r, double *g, double *b) {
     }
 }
 
-/* Atualiza label de status e sensibilidade dos botões */
+//Atualiza label de status e sensibilidade dos botões 
 static void atualizar_ui(AppState *app) {
     if (!app->config_carregada) {
         gtk_label_set_text(GTK_LABEL(app->lbl_status),
@@ -85,7 +68,7 @@ static void atualizar_ui(AppState *app) {
         return;
     }
 
-    /* Monta o texto de status */
+    //Monta o texto de status 
     char txt[200];
     const char *status_sim = app->sim.finished ? " ✓ CONCLUÍDA" : "";
     snprintf(txt, sizeof(txt),
@@ -101,13 +84,13 @@ static void atualizar_ui(AppState *app) {
     gtk_widget_set_sensitive(app->btn_retroceder, app->sim.history_pos > 0);
     gtk_widget_set_sensitive(app->btn_tudo,       !app->sim.finished);
     gtk_widget_set_sensitive(app->btn_salvar,      TRUE);
-    /* Modificar: só quando há simulação em andamento */
+    // Modificar: só quando há simulação em andamento
     gtk_widget_set_sensitive(app->btn_modificar,  app->sim.current_tick > 0);
 }
 
-/* Inicializa/reinicia o simulador com a config carregada */
+//Inicializa/reinicia o simulador com a config carregada 
 static int iniciar_simulacao(AppState *app) {
-    /* Libera histórico anterior se existir */
+    //libera histórico anterior se existir
     if (app->sim.history) { free(app->sim.history); app->sim.history = NULL; }
 
     if (sim_init(&app->sim, &app->config) != 0) {
@@ -123,18 +106,18 @@ static int iniciar_simulacao(AppState *app) {
     return 0;
 }
 
-/* ── Callback de desenho Cairo ───────────────────────────────────────────── */
+//calback de desenho Cairo
 static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
     AppState *app = (AppState *)data;
 
     int W = gtk_widget_get_allocated_width(widget);
     int H = gtk_widget_get_allocated_height(widget);
 
-    /* Fundo */
+    // Fundo 
     cairo_set_source_rgb(cr, 0.13, 0.13, 0.18);
     cairo_paint(cr);
 
-    /* ── Tela de boas-vindas quando não há config ─────────────────────── */
+    //ela de boa vindas quando não há config
     if (!app->config_carregada) {
         cairo_set_source_rgb(cr, 0.55, 0.55, 0.65);
         cairo_select_font_face(cr, "Sans",
@@ -155,12 +138,12 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
         return FALSE;
     }
 
-    /* ── Gantt real ───────────────────────────────────────────────────── */
+    //Gantt real 
     SimState *sim = &app->sim;
     int num_ticks = sim->current_tick > 0 ? sim->current_tick : 1;
     int num_tasks = sim->num_tasks;
 
-    /* Ordena tarefas por ID crescente */
+    //Ordena tarefas por ID crescente
     int order[MAX_TASKS];
     for (int i = 0; i < num_tasks; i++) order[i] = i;
     for (int i = 0; i < num_tasks-1; i++)
@@ -169,7 +152,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
                 int tmp=order[j]; order[j]=order[j+1]; order[j+1]=tmp;
             }
 
-    /* Título */
+    //titulo
     cairo_set_source_rgb(cr, 0.75, 0.85, 1.0);
     cairo_select_font_face(cr, "Sans",
                            CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
@@ -183,7 +166,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
     cairo_move_to(cr, G_MARGEM_E, 26);
     cairo_show_text(cr, titulo);
 
-    /* Tarefas */
+    //tasks
     for (int oi = 0; oi < num_tasks; oi++) {
         int idx = order[oi];
         TCB *t  = &sim->tasks[idx];
@@ -193,7 +176,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
         double tr, tg, tb;
         hex_para_rgb(t->color, &tr, &tg, &tb);
 
-        /* Label lateral */
+        // Label lateral 
         cairo_set_source_rgb(cr, 0.75, 0.75, 0.85);
         cairo_select_font_face(cr, "Monospace",
                                CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
@@ -203,11 +186,11 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
         cairo_move_to(cr, 6, y + G_CELL_H/2 + 5);
         cairo_show_text(cr, lbl);
 
-        /* Blocos por tick */
+        //blocos por tick 
         for (int tick = 0; tick < num_ticks; tick++) {
             int x = G_MARGEM_E + tick * G_CELL_W;
 
-            /* Estado neste tick via histórico */
+            //etado neste tick via histoorico
             int last_state = -1, last_cpu = NO_TASK;
             EventType last_event = EVENT_ARRIVAL;
             if (tick >= t->arrival) {
@@ -221,17 +204,13 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
                 }
             }
 
-            /*
-             * Correção: se a tarefa já terminou e este tick é >= finish_tick,
-             * força o estado para FINISHED — evita que o último bloco
-             * fique colorido como RUNNING após o término.
-             */
+            //correção: se a tarefa já terminou e este tick é >= finish_tick, força o estado para FINISHED  eevita que o último bloco fique colorido como RUNNING após o término.
             if (t->finish_tick >= 0 && tick >= t->finish_tick) {
                 last_state = TASK_FINISHED;
                 last_cpu   = NO_TASK;
             }
 
-            /* Cor do bloco */
+            //Cor do bloco 
             if      (last_state < 0)              cairo_set_source_rgb(cr, 0.10,0.10,0.15);
             else if (last_state == TASK_RUNNING)  cairo_set_source_rgb(cr, tr,tg,tb);
             else if (last_state == TASK_SUSPENDED)cairo_set_source_rgb(cr, 0.15,0.15,0.15);
@@ -241,13 +220,13 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
             cairo_rectangle(cr, x+1, y+2, G_CELL_W-2, G_CELL_H-4);
             cairo_fill(cr);
 
-            /* Borda */
+            //borda
             cairo_set_source_rgba(cr, 1,1,1, 0.07);
             cairo_set_line_width(cr, 0.6);
             cairo_rectangle(cr, x+1, y+2, G_CELL_W-2, G_CELL_H-4);
             cairo_stroke(cr);
 
-            /* Label CPU dentro do bloco */
+            //Label CPU dentro do bloco 
             if (last_state == TASK_RUNNING && last_cpu != NO_TASK) {
                 cairo_set_source_rgba(cr, 0,0,0, 0.55);
                 cairo_select_font_face(cr, "Monospace",
@@ -260,7 +239,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
                 cairo_show_text(cr, clbl);
             }
 
-            /* Ícone chegada: triângulo verde */
+            // xhegada: triângulo verde 
             if (last_event == EVENT_ARRIVAL && last_state >= 0 && last_state != TASK_SUSPENDED) {
                 cairo_set_source_rgb(cr, 0.0, 0.85, 0.35);
                 cairo_move_to(cr, x+3,  y+G_CELL_H-3);
@@ -269,13 +248,13 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
                 cairo_close_path(cr);
                 cairo_fill(cr);
             }
-            /* Ícone término: quadrado vermelho */
+            // término quadrado vermelho
             if (tick == t->finish_tick) {
                 cairo_set_source_rgb(cr, 0.9, 0.15, 0.15);
                 cairo_rectangle(cr, x+3, y+G_CELL_H-14, 10, 10);
                 cairo_fill(cr);
 }
-            /* Ícone sorteio: asterisco laranja */
+            //sorteio asterisco laranja 
             if (last_event == EVENT_LOTTERY) {
                 cairo_set_source_rgb(cr, 1.0, 0.55, 0.0);
                 cairo_set_font_size(cr, 13);
@@ -287,7 +266,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
         }
     }
 
-    /* Eixo X */
+    // Eixo X 
     int eixo_y = G_MARGEM_T + num_tasks * G_CELL_H;
     cairo_set_source_rgb(cr, 0.35,0.35,0.45);
     cairo_set_line_width(cr, 1.0);
@@ -311,7 +290,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
     cairo_move_to(cr, G_MARGEM_E+num_ticks*G_CELL_W/2-30, eixo_y+34);
     cairo_show_text(cr, "tempo (ticks)");
 
-    /* Legenda */
+    //Legenda 
     int lx = G_MARGEM_E, ly = eixo_y + 48;
     struct { double r,g,b; const char *n; } leg[]={
         {0.9,0.3,0.3,"Executando"},{0.2,0.2,0.3,"Pronta"},
@@ -334,7 +313,7 @@ static gboolean cb_desenhar(GtkWidget *widget, cairo_t *cr, gpointer data) {
     return FALSE;
 }
 
-/* ── Callbacks dos botões ─────────────────────────────────────────────────── */
+//callbacks dos botao
 
 static void cb_avancar(GtkWidget *btn, gpointer data) {
     (void)btn;
@@ -371,7 +350,7 @@ static void cb_salvar_svg(GtkWidget *btn, gpointer data) {
     AppState *app = (AppState*)data;
     if (!app->config_carregada) return;
 
-    /* Diálogo para escolher onde salvar */
+    //dálogo para escolher onde salvar
     GtkWidget *dlg = gtk_file_chooser_dialog_new(
         "Salvar Gantt como SVG",
         GTK_WINDOW(app->janela),
@@ -396,11 +375,7 @@ static void cb_salvar_svg(GtkWidget *btn, gpointer data) {
     gtk_widget_destroy(dlg);
 }
 
-/*
- * cb_modificar_tarefa - Abre a lista de tarefas para modificar
- *
- * Quando retorna, redesenha o canvas pois o estado pode ter mudado.
- */
+// cb_modificar_tarefa abre a lista de tarefas para modificar, quando retorna, redesenha o canvas pois o estado pode ter mudado
 static void cb_modificar_tarefa(GtkWidget *btn, gpointer data) {
     (void)btn;
     AppState *app = (AppState*)data;
@@ -408,21 +383,17 @@ static void cb_modificar_tarefa(GtkWidget *btn, gpointer data) {
 
     modify_show_task_list(GTK_WINDOW(app->janela), &app->sim);
 
-    /* Redesenha sempre que voltar da lista (pode ter havido modificação) */
+    //redesenha sempre que voltar da lista pde ter havido modificação
     gtk_widget_queue_draw(app->area);
     atualizar_ui(app);
 }
 
-/*
- * cb_nova_simulacao - Reinicia a simulação sem fechar o programa
- *
- * Pergunta se quer usar a mesma configuração ou carregar uma nova.
- */
+//cb_nova_simulacao recomeça a simulação sem fechar o programa, pergunta se quer usar a mesma configuração ou carregar uma nova
 static void cb_nova_simulacao(GtkWidget *btn, gpointer data) {
     (void)btn;
     AppState *app = (AppState*)data;
 
-    /* Diálogo de confirmação com opções */
+    //Diálogo de confirmação com opções
     GtkWidget *dlg = gtk_dialog_new_with_buttons(
         "Nova Simulação",
         GTK_WINDOW(app->janela),
@@ -450,7 +421,7 @@ static void cb_nova_simulacao(GtkWidget *btn, gpointer data) {
     if (resp == GTK_RESPONSE_CANCEL) return;
 
     if (resp == GTK_RESPONSE_YES) {
-        /* Reinicia com a mesma configuração */
+        //Reinicia com a mesma configuração 
         if (app->config_carregada) {
             if (app->sim.history) { free(app->sim.history); app->sim.history = NULL; }
             if (sim_init(&app->sim, &app->config) == 0) {
@@ -459,7 +430,7 @@ static void cb_nova_simulacao(GtkWidget *btn, gpointer data) {
             }
         }
     } else if (resp == GTK_RESPONSE_NO) {
-        /* Abre o diálogo de importar/manual */
+        //abre o diálogo de importar/manual 
         GtkWidget *dlg2 = gtk_dialog_new_with_buttons(
             "Como carregar a nova configuração?",
             GTK_WINDOW(app->janela),
@@ -493,18 +464,13 @@ static void cb_nova_simulacao(GtkWidget *btn, gpointer data) {
     }
 }
 
-/*
- * cb_importar - Abre o diálogo de escolha de arquivo TXT/PDF
- *
- * Após o usuário escolher e confirmar, inicializa a simulação
- * e redesenha o canvas.
- */
+//cb_importar abre o diálogo de escolha de arquivo TXT/PDF depois do o usuário escolher e confirmar, inicializa a simulação redesenha o canvas.
 static void cb_importar(GtkWidget *btn, gpointer data) {
     (void)btn;
     AppState *app = (AppState*)data;
 
     int ret = input_show_file_chooser(GTK_WINDOW(app->janela), &app->config);
-    if (ret != 0) return; /* usuário cancelou ou erro */
+    if (ret != 0) return; //usuário cancelou ou erro 
 
     if (iniciar_simulacao(app) != 0) return;
 
@@ -512,9 +478,7 @@ static void cb_importar(GtkWidget *btn, gpointer data) {
     atualizar_ui(app);
 }
 
-/*
- * cb_manual - Abre o formulário de entrada manual
- */
+// cb_manual abre o formulário de entrada manual
 static void cb_manual(GtkWidget *btn, gpointer data) {
     (void)btn;
     AppState *app = (AppState*)data;
@@ -528,13 +492,13 @@ static void cb_manual(GtkWidget *btn, gpointer data) {
     atualizar_ui(app);
 }
 
-/* ── gui_run - Constrói e abre a janela principal ───────────────────────── */
+//gui_run connstrói e abre a janela principal 
 void gui_run(const char *config_file) {
-    /* Aloca o estado na heap para não ter problemas de escopo */
+    //aloca o estado na heap para não ter problemas de escopo 
     AppState *app = (AppState*)calloc(1, sizeof(AppState));
     app->config_carregada = 0;
 
-    /* Janela principal */
+    //Janela principal 
     app->janela = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(app->janela),
                          "Simulador SO Multitarefa — Gantt Interativo");
@@ -542,11 +506,11 @@ void gui_run(const char *config_file) {
     gtk_window_set_position(GTK_WINDOW(app->janela), GTK_WIN_POS_CENTER);
     g_signal_connect(app->janela, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-    /* Container vertical principal */
+    //container vertical principal 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(app->janela), vbox);
 
-    /* ── Barra superior: importar / manual ────────────────────────────── */
+    //barra superior p importar / manual 
     GtkWidget *barra_topo = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_container_set_border_width(GTK_CONTAINER(barra_topo), 8);
     gtk_box_pack_start(GTK_BOX(vbox), barra_topo, FALSE, FALSE, 0);
@@ -559,23 +523,23 @@ void gui_run(const char *config_file) {
     g_signal_connect(btn_manual, "clicked", G_CALLBACK(cb_manual), app);
     gtk_box_pack_start(GTK_BOX(barra_topo), btn_manual, FALSE, FALSE, 0);
 
-    /* Separador */
+    // Separador
     gtk_box_pack_start(GTK_BOX(vbox),
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
                        FALSE, FALSE, 0);
 
-    /* ── Área de desenho do Gantt ──────────────────────────────────────── */
+    //Área de desenho do Gantt 
     app->area = gtk_drawing_area_new();
     gtk_widget_set_size_request(app->area, 820, 440);
     g_signal_connect(app->area, "draw", G_CALLBACK(cb_desenhar), app);
     gtk_box_pack_start(GTK_BOX(vbox), app->area, TRUE, TRUE, 0);
 
-    /* Separador */
+    //Separador 
     gtk_box_pack_start(GTK_BOX(vbox),
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
                        FALSE, FALSE, 0);
 
-    /* ── Barra inferior: controles ─────────────────────────────────────── */
+    //barra inferior: controles 
     GtkWidget *barra_bot = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_container_set_border_width(GTK_CONTAINER(barra_bot), 8);
     gtk_box_pack_start(GTK_BOX(vbox), barra_bot, FALSE, FALSE, 0);
@@ -600,32 +564,32 @@ void gui_run(const char *config_file) {
                      G_CALLBACK(cb_salvar_svg), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_salvar, FALSE, FALSE, 0);
 
-    /* Separador visual entre controles e botões de ação */
+    // Separador visual entre controles e botões de ação 
     gtk_box_pack_start(GTK_BOX(barra_bot),
                        gtk_separator_new(GTK_ORIENTATION_VERTICAL),
                        FALSE, FALSE, 4);
 
-    /* Botão: Modificar Tarefa */
+    //botão modificar tarefa
     app->btn_modificar = gtk_button_new_with_label("✏ Modificar Tarefa");
     g_signal_connect(app->btn_modificar, "clicked",
                      G_CALLBACK(cb_modificar_tarefa), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_modificar, FALSE, FALSE, 0);
 
-    /* Botão: Nova Simulação */
+    //Botão: Nova Simulação 
     app->btn_nova_sim = gtk_button_new_with_label("🔄 Nova Simulação");
     g_signal_connect(app->btn_nova_sim, "clicked",
                      G_CALLBACK(cb_nova_simulacao), app);
     gtk_box_pack_start(GTK_BOX(barra_bot), app->btn_nova_sim, FALSE, FALSE, 0);
 
-    /* Label de status */
+    //label de status 
     app->lbl_status = gtk_label_new("Nenhuma configuração carregada");
     gtk_widget_set_halign(app->lbl_status, GTK_ALIGN_END);
     gtk_box_pack_end(GTK_BOX(barra_bot), app->lbl_status, TRUE, TRUE, 0);
 
-    atualizar_ui(app); /* define sensibilidade inicial dos botões */
+    atualizar_ui(app); // define sensibilidade inicial dos botões 
     gtk_widget_show_all(app->janela);
 
-    /* Se um arquivo foi passado, carrega automaticamente */
+    //se um arquivo foi passado, carrega automaticamente 
     if (config_file) {
         if (config_load(&app->config, config_file) == 0) {
             iniciar_simulacao(app);
