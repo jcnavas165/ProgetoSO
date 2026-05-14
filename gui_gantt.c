@@ -464,7 +464,7 @@ static void cb_nova_simulacao(GtkWidget *btn, gpointer data) {
     }
 }
 
-//cb_importar abre o diálogo de escolha de arquivo TXT/PDF depois do o usuário escolher e confirmar, inicializa a simulação redesenha o canvas.
+//cb_importar abre o diálogo de escolha de arquivo TXT depois do o usuário escolher e confirmar, inicializa a simulação redesenha o canvas.
 static void cb_importar(GtkWidget *btn, gpointer data) {
     (void)btn;
     AppState *app = (AppState*)data;
