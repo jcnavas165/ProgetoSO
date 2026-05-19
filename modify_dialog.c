@@ -565,7 +565,15 @@ void modify_show_task_list(GtkWindow *parent, SimState *sim) {
         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
         "_Fechar", GTK_RESPONSE_CLOSE,
         NULL);
-    gtk_window_set_default_size(GTK_WINDOW(dlg), 500, -1);
+
+    /*
+     * [ALTERADO] Altura fixa de 480px na janela.
+     * Antes era gtk_window_set_default_size(500, -1), ou seja, altura
+     * automática — a janela crescia indefinidamente com muitas tarefas
+     * e saía da tela. Com altura fixa o GtkScrolledWindow abaixo
+     * entra em ação quando as linhas não cabem.
+     */
+    gtk_window_set_default_size(GTK_WINDOW(dlg), 520, 480);
 
     GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
     gtk_container_set_border_width(GTK_CONTAINER(content), 12);
@@ -582,11 +590,42 @@ void modify_show_task_list(GtkWindow *parent, SimState *sim) {
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
                        FALSE, FALSE, 6);
 
-    /* Grade: uma linha por tarefa */
+    /*
+     * [NOVO] GtkScrolledWindow envolvendo o grid de tarefas.
+     *
+     * Por que foi adicionado:
+     *   Antes o grid era adicionado direto no content do diálogo.
+     *   Com 30 tarefas (como no caso-teste-mc-005) a janela crescia
+     *   para fora da tela e não havia como rolar para ver as demais.
+     *
+     * GTK_POLICY_NEVER      = barra horizontal nunca aparece
+     *   (as colunas têm largura fixa, não precisa rolar na horizontal)
+     * GTK_POLICY_AUTOMATIC  = barra vertical aparece só quando necessário
+     *   (com poucas tarefas fica invisível; com muitas aparece sozinha)
+     *
+     * TRUE, TRUE no gtk_box_pack_start = o scroll ocupa todo o espaço
+     * vertical disponível na janela (expand + fill).
+     */
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(scroll),
+        GTK_POLICY_NEVER,      /* horizontal: nunca rola */
+        GTK_POLICY_AUTOMATIC   /* vertical: rola quando necessário */
+    );
+    gtk_box_pack_start(GTK_BOX(content), scroll, TRUE, TRUE, 0);
+
+    /* Grade: uma linha por tarefa — agora fica DENTRO do scroll */
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 12);
-    gtk_box_pack_start(GTK_BOX(content), grid, TRUE, TRUE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(grid), 4); /* pequena margem interna */
+
+    /*
+     * [ALTERADO] Antes: gtk_box_pack_start(content, grid, ...)
+     * Agora: gtk_container_add(scroll, grid)
+     * O grid vai para dentro do GtkScrolledWindow, não direto no diálogo.
+     */
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
 
     for (int i = 0; i < sim->num_tasks; i++) {
         TCB *t = &sim->tasks[i];

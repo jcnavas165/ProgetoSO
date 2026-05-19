@@ -1,7 +1,4 @@
 /*
- *projeto A SO
- *Autores: Julio Cesar Navas e Nathálya Chaves
- *
  * input_dialog.c - Implementação dos diálogos de importação e entrada manual
  *
  * CONCEITOS GTK USADOS AQUI:
@@ -14,6 +11,13 @@
  *   GtkComboBoxText      - lista suspensa de opções
  *   GtkScrolledWindow    - área rolável (para quando há muitas tarefas)
  *   GtkMessageDialog     - janela de mensagem de erro/aviso
+ *
+ * ALTERAÇÕES v2:
+ *   - input_read_csv()          [NOVA] lê arquivo .csv chamando config_load_csv()
+ *   - input_show_file_chooser() [ALTERADO] filtro CSV com nome correto ("Arquivo")
+ *                               [CORRIGIDO] bloco if/else da detecção de extensão
+ *                               (versão anterior tinha bug: o ramo .txt executava
+ *                                dois input_read_txt em sequência)
  */
 
 #include <gtk/gtk.h>
@@ -43,6 +47,11 @@
  *   config_load_from_string precisa da string completa. Poderíamos
  *   ler linha por linha, mas ler tudo de uma vez é mais simples e
  *   o arquivo de config é sempre pequeno (< 10 KB).
+ *
+ * Compatibilidade com caso-teste-mc-005-priop.txt:
+ *   O config_load_from_string repassa para config_load() internamente,
+ *   que agora usa parse_id_field() — aceita IDs "t01", "t02" etc.
+ *   e tolera o ';' extra no final de cada linha de tarefa.
  */
 int input_read_txt(const char *filepath, SimConfig *cfg) {
     /* Abre o arquivo em modo leitura de texto */
@@ -86,6 +95,51 @@ int input_read_txt(const char *filepath, SimConfig *cfg) {
     /* Libera a memória alocada com malloc */
     free(conteudo);
 
+    return resultado;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * PARTE 1B — LEITURA DE ARQUIVO CSV  [NOVA]
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * input_read_csv - Lê arquivo .csv (separador vírgula) e converte para SimConfig
+ *
+ * [NOVA FUNÇÃO] Por quê foi adicionada:
+ *   CSV é o formato padrão exportado por planilhas (Excel, LibreOffice, etc.).
+ *   Permitir a leitura de CSV facilita a criação de casos de teste sem
+ *   precisar editar o arquivo no formato TXT manualmente.
+ *
+ * Estratégia:
+ *   Diferente de input_read_txt() (que usa config_load_from_string via arquivo
+ *   temporário), esta função chama config_load_csv() diretamente pelo path,
+ *   pois config_load_csv() já lida com o arquivo em disco.
+ *
+ *   Isso é mais eficiente: não precisamos ler o arquivo para memória
+ *   só para salvar em outro arquivo temporário.
+ *
+ * Formato CSV esperado (mesmo conteúdo do .txt, com ',' no lugar de ';'):
+ *   Linha 1: algoritmo,quantum,qtde_cpus
+ *   Linha N: id,cor,ingresso,duracao,prioridade
+ *
+ * IDs com prefixo (ex: "t03") também são aceitos graças a parse_id_field().
+ *
+ * Parâmetros:
+ *   filepath - Caminho do arquivo .csv
+ *   cfg      - Ponteiro para SimConfig a preencher
+ *
+ * Retorno:
+ *   0 = sucesso, -1 = erro
+ */
+int input_read_csv(const char *filepath, SimConfig *cfg) {
+    /* Informa no terminal qual arquivo está sendo carregado */
+    printf("[INFO] Lendo arquivo CSV: %s\n", filepath);
+
+    /* Delega diretamente para config_load_csv() que usa separador ',' */
+    int resultado = config_load_csv(cfg, filepath);
+
+    /* config_load_csv() já imprime mensagens de erro detalhadas,
+     * então aqui apenas repassamos o código de retorno */
     return resultado;
 }
 
@@ -142,7 +196,7 @@ int input_read_pdf(const char *filepath, SimConfig *cfg) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * PARTE 3 — DIÁLOGO DE ESCOLHA DE ARQUIVO (TXT)
+ * PARTE 3 — DIÁLOGO DE ESCOLHA DE ARQUIVO (TXT / CSV / PDF)
  * ══════════════════════════════════════════════════════════════════════════ */
 
 /*
@@ -167,26 +221,39 @@ static void mostrar_erro(GtkWindow *parent, const char *mensagem) {
  * input_show_file_chooser - Abre o explorador de arquivos do sistema
  *
  * GtkFileChooserDialog é a janela padrão de "Abrir arquivo" do GNOME.
- * Configuramos filtros para só mostrar .txt e .pdf.
+ * [ALTERADO] Agora inclui filtro para .csv além de .txt e .pdf.
  *
  * GTK_FILE_CHOOSER_ACTION_OPEN = modo de ABERTURA (não de salvar)
  */
 int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     /* Cria o diálogo de escolha de arquivo */
     GtkWidget *dlg = gtk_file_chooser_dialog_new(
-        "Importar configuração (TXT)",   /* título da janela */
-        parent,                                  /* janela pai */
-        GTK_FILE_CHOOSER_ACTION_OPEN,            /* modo: abrir arquivo */
-        "_Cancelar", GTK_RESPONSE_CANCEL,        /* botão Cancelar */
-        "_Abrir",    GTK_RESPONSE_ACCEPT,        /* botão Abrir */
-        NULL                                     /* fim da lista de botões */
+        "Importar configuração (TXT / CSV / PDF)", /* [ALTERADO] título atualizado */
+        parent,                                     /* janela pai */
+        GTK_FILE_CHOOSER_ACTION_OPEN,               /* modo: abrir arquivo */
+        "_Cancelar", GTK_RESPONSE_CANCEL,           /* botão Cancelar */
+        "_Abrir",    GTK_RESPONSE_ACCEPT,           /* botão Abrir */
+        NULL                                        /* fim da lista de botões */
     );
 
-    /* ── Filtro para arquivos de texto ────────────────────────────────── */
+    /* ── Filtro para arquivos de texto (separador ';') ────────────────── */
     GtkFileFilter *filtro_txt = gtk_file_filter_new();
     gtk_file_filter_set_name(filtro_txt, "Arquivos de texto (*.txt)");
     gtk_file_filter_add_pattern(filtro_txt, "*.txt"); /* *.txt = qualquer .txt */
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_txt);
+
+    /* ── [NOVO] Filtro para arquivos CSV (separador ',') ──────────────── */
+    /*
+     * Por quê foi adicionado:
+     *   Permite ao usuário navegar pelos arquivos e ver os .csv diretamente,
+     *   em vez de precisar selecionar "todos os arquivos".
+     * [CORRIGIDO] Nome era "Aarquivo CSV" (duplo 'a') — corrigido para "Arquivo CSV"
+     */
+    GtkFileFilter *filtro_csv = gtk_file_filter_new();
+    gtk_file_filter_set_name(filtro_csv, "Arquivo CSV (*.csv)"); /* [CORRIGIDO] */
+    gtk_file_filter_add_pattern(filtro_csv, "*.csv");   /* minúsculas */
+    gtk_file_filter_add_pattern(filtro_csv, "*.CSV");   /* maiúsculas (Windows) */
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_csv);
 
     /* ── Filtro para arquivos PDF ──────────────────────────────────────── */
     GtkFileFilter *filtro_pdf = gtk_file_filter_new();
@@ -194,12 +261,6 @@ int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
     gtk_file_filter_add_pattern(filtro_pdf, "*.pdf");
     gtk_file_filter_add_pattern(filtro_pdf, "*.PDF"); /* maiúsculas também */
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_pdf);
-
-    /*filtro csv*/
-    GtkFileFilter *filtro_csv = gtk_file_filter_new();
-    gtk_file_filter_set_name(filtro_csv, "Aarquivo CSV (*.csv)");
-    gtk_file_filter_add_pattern(filtro_csv, "*.csv");
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), filtro_csv);
 
     /* ── Filtro "todos os arquivos" ────────────────────────────────────── */
     GtkFileFilter *filtro_todos = gtk_file_filter_new();
@@ -222,39 +283,57 @@ int input_show_file_chooser(GtkWindow *parent, SimConfig *cfg) {
 
     if (!filepath) return -1;
 
-    /* Decide o tipo de arquivo baseado na extensão */
-int resultado = -1;
-size_t len = strlen(filepath);
+    /*
+     * Decide o tipo de arquivo baseado na extensão (case-insensitive).
+     *
+     * [CORRIGIDO] Versão anterior tinha bug no bloco else do .txt:
+     *   o else executava printf + input_read_txt TWO vezes seguidas,
+     *   a segunda sem sentido (estava colada ao bloco do .txt).
+     *   Corrigido com um else final limpo para extensões desconhecidas.
+     *
+     * strcasecmp() compara ignorando maiúsculas/minúsculas (Linux).
+     * filepath + len - 4  aponta para os últimos 4 chars, ex: ".txt"
+     */
+    int resultado = -1;
+    size_t len = strlen(filepath);
 
-if (len > 4 && (strcasecmp(filepath + len - 4, ".pdf") == 0)) {
-    /* Arquivo PDF: extrai texto */
-    resultado = input_read_pdf(filepath, cfg);
-} 
-else if (len > 4 && (strcasecmp(filepath + len - 4, ".csv") == 0)) {
-    /* Arquivo CSV: lê como texto (mesmo formato do TXT) */
-    printf("[INFO] Lendo arquivo CSV: %s\n", filepath);
-    resultado = input_read_txt(filepath, cfg);
-}
-else if (len > 4 && (strcasecmp(filepath + len - 4, ".txt") == 0)) {
-    /* Arquivo TXT: leitura normal */
-    printf("[INFO] Lendo arquivo TXT: %s\n", filepath);
-    resultado = input_read_txt(filepath, cfg);
-    /* Qualquer outra extensão: tenta ler como texto */
-    printf("[INFO] Tentando ler como texto: %s\n", filepath);
-    resultado = input_read_txt(filepath, cfg);
-}
+    if (len > 4 && strcasecmp(filepath + len - 4, ".pdf") == 0) {
+        /* Arquivo PDF: extrai o texto com pdftotext, depois faz parse */
+        printf("[INFO] Lendo arquivo PDF: %s\n", filepath);
+        resultado = input_read_pdf(filepath, cfg);
 
+    } else if (len > 4 && strcasecmp(filepath + len - 4, ".csv") == 0) {
+        /* [NOVO] Arquivo CSV: usa config_load_csv() com separador ',' */
+        resultado = input_read_csv(filepath, cfg);  /* já imprime [INFO] */
+
+    } else if (len > 4 && strcasecmp(filepath + len - 4, ".txt") == 0) {
+        /* Arquivo TXT: leitura com separador ';' (formato original) */
+        printf("[INFO] Lendo arquivo TXT: %s\n", filepath);
+        resultado = input_read_txt(filepath, cfg);
+
+    } else {
+        /* [CORRIGIDO] Extensão desconhecida: tenta como TXT (único fallback)
+         * Versão anterior executava input_read_txt duas vezes por engano */
+        printf("[INFO] Extensão desconhecida, tentando ler como TXT: %s\n", filepath);
+        resultado = input_read_txt(filepath, cfg);
+    }
 
     /* g_free() libera memória alocada pelo GTK (não usar free() aqui!) */
     g_free(filepath);
 
     if (resultado != 0) {
+        /* Mensagem de erro atualizada para incluir formato CSV */
         mostrar_erro(parent,
             "Não foi possível carregar o arquivo.\n\n"
-            "Verifique se o formato está correto:\n"
+            "Verifique se o formato está correto:\n\n"
+            "Formato TXT (separador ';'):\n"
             "  Linha 1: ALGORITMO;QUANTUM;CPUS\n"
             "  Demais:  ID;COR;CHEGADA;DURAÇÃO;PRIORIDADE\n\n"
-            "Exemplo:\n"
+            "Formato CSV (separador ','):\n"
+            "  Linha 1: ALGORITMO,QUANTUM,CPUS\n"
+            "  Demais:  ID,COR,CHEGADA,DURACAO,PRIORIDADE\n\n"
+            "O ID pode ser numérico (ex: 1) ou com prefixo (ex: t01).\n\n"
+            "Exemplo TXT:\n"
             "  SRTF;4;2\n"
             "  1;FF4444;0;10;3");
     }
@@ -293,13 +372,13 @@ typedef struct {
  * gpointer data nos g_signal_connect.
  */
 typedef struct {
-    GtkWidget  *combo_algo;      /* Lista suspensa: SRTF / PRIOP */
-    GtkWidget  *spin_quantum;    /* Spin: quantum */
-    GtkWidget  *spin_cpus;       /* Spin: número de CPUs */
-    GtkWidget  *grid_tarefas;    /* Grid onde as linhas de tarefas ficam */
+    GtkWidget  *combo_algo;           /* Lista suspensa: SRTF / PRIOP */
+    GtkWidget  *spin_quantum;         /* Spin: quantum */
+    GtkWidget  *spin_cpus;            /* Spin: número de CPUs */
+    GtkWidget  *grid_tarefas;         /* Grid onde as linhas de tarefas ficam */
     TarefaRow   linhas[MAX_FORM_TASKS]; /* Array das linhas de tarefas */
-    int         num_linhas;      /* Quantas linhas existem agora */
-    GtkWidget  *dialogo;         /* Referência ao diálogo principal */
+    int         num_linhas;           /* Quantas linhas existem agora */
+    GtkWidget  *dialogo;              /* Referência ao diálogo principal */
 } FormState;
 
 /*
@@ -578,7 +657,7 @@ int input_show_manual_dialog(GtkWindow *parent, SimConfig *cfg) {
     /* Pega o ID do item selecionado no combo box */
     const gchar *algo_id = gtk_combo_box_get_active_id(
                                GTK_COMBO_BOX(form.combo_algo));
-    int quantum = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(form.spin_quantum));
+    int quantum  = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(form.spin_quantum));
     int num_cpus = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(form.spin_cpus));
 
     if (form.num_linhas == 0) {
@@ -587,7 +666,8 @@ int input_show_manual_dialog(GtkWindow *parent, SimConfig *cfg) {
         return -1;
     }
 
-    /* Monta a string de configuração no formato aceito pelo parser */
+    /* Monta a string de configuração no formato aceito pelo parser
+     * (usamos ';' pois config_load_from_string usa separador ';') */
     char config_str[4096];
     int pos = 0;
     pos += snprintf(config_str + pos, sizeof(config_str) - pos,
@@ -597,8 +677,8 @@ int input_show_manual_dialog(GtkWindow *parent, SimConfig *cfg) {
         TarefaRow *t = &form.linhas[i];
         const char *id_str  = gtk_entry_get_text(GTK_ENTRY(t->entry_id));
         const char *cor_str = gtk_entry_get_text(GTK_ENTRY(t->entry_cor));
-        int chegada   = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(t->spin_chegada));
-        int duracao   = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(t->spin_duracao));
+        int chegada    = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(t->spin_chegada));
+        int duracao    = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(t->spin_duracao));
         int prioridade = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(t->spin_prioridade));
 
         pos += snprintf(config_str + pos, sizeof(config_str) - pos,
