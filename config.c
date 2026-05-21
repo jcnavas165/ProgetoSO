@@ -1,17 +1,16 @@
 /*
  * config.c - Implementação da leitura e parse do arquivo de configuração
  *
- * O parse segue o formato especificado no documento:
  *   Linha 1: algoritmo;quantum;qtde_cpus
  *   Linha N: id;cor;ingresso;duracao;prioridade[;eventos]
  *
- * ALTERAÇÕES v2 (suporte a CSV e caso-teste-mc):
+ * ALTERAÇÕES v2 (suporte a CSV):
  *   - parse_task_line() extraída para função auxiliar reutilizável
  *   - parse_id_field()  aceita IDs numéricos ("5") OU com prefixo ("t05")
  *   - config_load_csv() novo: lê arquivo .csv com separador vírgula (',')
  *   - config_load()     agora tolera ';' extra no final das linhas de tarefa
  *
- * Autor: Projeto A - Simulador SO Multitarefa
+ *
  */
 
 #include <stdio.h>
@@ -60,27 +59,8 @@ static char *trim(char *s) {
     return s;
 }
 
-/*
- * [NOVO] parse_id_field - Converte campo de ID para inteiro
- *
- * Por quê foi adicionado:
- *   O caso-teste-mc-005-priop.txt usa IDs no formato "t01", "t02", etc.
- *   O parser original só aceitava inteiros puros como "1", "2".
- *   Esta função detecta automaticamente o formato e converte ambos.
- *
- * Estratégia:
- *   - Se o campo começa com letra (ex: "t01"), pula os caracteres não-dígitos
- *     e converte o número restante com atoi()
- *   - Se começa com dígito (ex: "5"), converte diretamente com atoi()
- *
- * Exemplos:
- *   "t01"  → 1
- *   "t15"  → 15
- *   "5"    → 5
- *   "id_3" → 3  (pula "id_")
- */
 static int parse_id_field(const char *s) {
-    /* Avança enquanto o caractere não for dígito */
+    /* aqui ele vai avançando ate achar o digito */
     while (*s && !isdigit((unsigned char)*s)) {
         s++;
     }
@@ -152,9 +132,6 @@ static int parse_task_line(char *buf, const char *sep,
     task_init(&cfg->tasks[cfg->num_tasks], id, color, arrival, duration, priority);
     cfg->num_tasks++;   /* incrementa o contador de tarefas carregadas */
 
-    /* Campo 6 em diante (eventos, ';' extra, etc.) são ignorados:
-     * o caso-teste-mc termina cada linha com ";" extra, o que é normal
-     * — strtok simplesmente não encontra mais tokens e encerramos. */
     return 0; /* Sucesso */
 
 err:
@@ -164,14 +141,7 @@ err:
 
 /* ── Implementação das funções públicas ───────────────────────────────────── */
 
-/*
- * algo_name_to_enum - Converte string para enum do algoritmo
- *
- * Decisão de implementação:
- *   Convertemos para minúsculas antes de comparar, implementando
- *   o requisito 3.3.2 (case-insensitive). Fazemos a conversão em
- *   uma cópia local para não modificar o parâmetro original.
- */
+
 SchedAlgo algo_name_to_enum(const char *name) {
     char lower[MAX_ALGO_NAME];
     strncpy(lower, name, MAX_ALGO_NAME - 1);
