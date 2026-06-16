@@ -27,6 +27,7 @@
 #include "task.h"
 #include "config.h"
 #include "scheduler.h"
+#include "actions.h"
 
 /* Número máximo de ticks que a simulação pode durar */
 #define MAX_TICKS 512
@@ -82,6 +83,15 @@ typedef struct {
     CpuState     cpus[MAX_CPUS];   /* Estado atual de cada CPU */
     int          num_cpus;         /* Número de CPUs */
     int          finished;         /* 1 se todas as tarefas terminaram */
+
+    /* ── Sincronização (mutexes) ───────────────────────────────────────── */
+    Mutex        mutexes[MAX_MUTEXES]; /* Array de mutexes */
+    int          mutex_count;          /* Quantidade de mutexes em uso */
+
+    /* ── Operações de E/S ──────────────────────────────────────────────── */
+    int          io_tasks[256];    /* IDs de tarefas com I/O pendente */
+    int          io_end_tick[256]; /* Ticks de término das I/Os */
+    int          io_count;         /* Quantidade de I/Os ativas */
 
     /* ── Histórico de snapshots (para retroceder/avançar) ───────────────── */
     SimSnapshot *history;        /* Array alocado dinamicamente */

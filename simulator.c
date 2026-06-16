@@ -19,7 +19,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "simulator.h"/* ── Funções auxiliares internas ──────────────────────────────────────────── */
+#include "simulator.h"
+#include "simulator_ext.h"
+
+/* ── Funções auxiliares internas ──────────────────────────────────────────── */
 
 /*
  * find_task_by_id - Encontra ponteiro para TCB dado seu ID
@@ -72,6 +75,12 @@ int sim_init(SimState *sim, SimConfig *config) {
         sim->cpus[c].quantum_used = 0;
         sim->cpus[c].is_off      = 0;
     }
+
+    /* Inicializa mutexes */
+    sim_init_mutexes(sim);
+
+    /* Inicializa I/O */
+    sim->io_count = 0;
 
     sim->current_tick  = 0;
     sim->finished      = 0;
@@ -226,11 +235,18 @@ int sim_step(SimState *sim) {
     }
 
     /* ── FASE 4: Escalonamento ──────────────────────────────────────────── */
+    
+    /* Para PRIOPEnv: atualiza prioridades dinâmicas com envelhecimento */
+    if (sim->config->algo == ALGO_PRIOPENV) {
+        sim_update_dynamic_priority(sim);
+    }
+
     SchedContext ctx;
     ctx.tasks       = sim->tasks;
     ctx.num_tasks   = sim->num_tasks;
     ctx.current_tick = tick;
     ctx.quantum     = sim->config->quantum;
+    ctx.alpha       = sim->config->alpha;
     ctx.num_cpus    = sim->num_cpus;
     for (int c = 0; c < sim->num_cpus; c++) {
         ctx.cpu_tasks[c] = sim->cpus[c].task_id;
@@ -341,6 +357,9 @@ int sim_step(SimState *sim) {
             sim->tasks[i].wait_time++;
         }
     }
+
+    /* ── FASE 6c: Verifica E/S que terminaram e acorda tarefas ──────────── */
+    sim_check_suspended_tasks(sim);
 
     /* ── FASE 7: Verifica se a simulação terminou ─────────────────────────── */
     int all_done = 1;

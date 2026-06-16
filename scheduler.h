@@ -45,6 +45,7 @@ typedef struct {
     int  num_tasks;      /* Quantidade total de tarefas */
     int  current_tick;   /* Tick atual do relógio global */
     int  quantum;        /* Quantum de tempo configurado */
+    int  alpha;          /* Parâmetro alpha para envelhecimento (PRIOPEnv) */
     int  cpu_tasks[MAX_CPUS]; /* ID da tarefa em cada CPU (-1 = CPU livre) */
     int  num_cpus;       /* Número de CPUs disponíveis */
 } SchedContext;
@@ -96,6 +97,18 @@ void sched_srtf(const SchedContext *ctx, SchedResult *res);
  * Desempate: prioridade → critérios gerais (4.3)
  */
 void sched_priop(const SchedContext *ctx, SchedResult *res);
+
+/*
+ * sched_priopenv - Prioridade Preemptivo com Envelhecimento
+ *
+ * Similar ao PRIOP, mas usa prioridade dinâmica que aumenta com o tempo.
+ * A prioridade dinâmica envelhece de acordo com o parâmetro alpha:
+ *   dynamic_priority = static_priority + (current_time - arrival) / alpha
+ *
+ * Isto resolve o problema de starvation: tarefas de baixa prioridade
+ * eventualmente envelhecem e adquirem prioridade suficiente para executar.
+ */
+void sched_priopenv(const SchedContext *ctx, SchedResult *res);
 
 /*
  * scheduler_get - Retorna o ponteiro para a função do algoritmo escolhido

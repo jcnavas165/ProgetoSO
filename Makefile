@@ -9,10 +9,12 @@ TARGET = simulador
 
 SRCS = main.c \
        task.c \
+       actions.c \
        config.c \
        config_ext.c \
        scheduler.c \
        simulator.c \
+       simulator_ext.c \
        gantt.c \
        gui_gantt.c \
        input_dialog.c \
@@ -48,14 +50,16 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	@$(CC) $(CFLAGS) -c $< -o $@ 2>/dev/null
 
-main.o:          main.c          task.h config.h scheduler.h simulator.h gantt.h gui_gantt.h
-task.o:          task.c          task.h
-config.o:        config.c        config.h task.h
+main.o:          main.c          task.h config.h scheduler.h simulator.h gantt.h gui_gantt.h actions.h
+task.o:          task.c          task.h actions.h
+actions.o:       actions.c       actions.h task.h
+config.o:        config.c        config.h task.h actions.h
 config_ext.o:    config_ext.c    config_ext.h config.h
 scheduler.o:     scheduler.c     scheduler.h task.h config.h
-simulator.o:     simulator.c     simulator.h task.h config.h scheduler.h
+simulator.o:     simulator.c     simulator.h task.h config.h scheduler.h actions.h
+simulator_ext.o: simulator_ext.c simulator_ext.h simulator.h task.h actions.h
 gantt.o:         gantt.c         gantt.h simulator.h
-gui_gantt.o:     gui_gantt.c     gui_gantt.h simulator.h task.h input_dialog.h modify_dialog.h
+gui_gantt.o:     gui_gantt.c     gui_gantt.h simulator.h task.h input_dialog.h modify_dialog.h actions.h
 input_dialog.o:  input_dialog.c  input_dialog.h config.h config_ext.h task.h
 modify_dialog.o: modify_dialog.c modify_dialog.h simulator.h task.h
 

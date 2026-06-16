@@ -13,6 +13,8 @@
 #ifndef TASK_H
 #define TASK_H
 
+#include "actions.h"
+
 /* Tamanho máximo de cor no formato RGB hexadecimal, ex: "F0E0D0" */
 #define COLOR_LEN 7
 
@@ -62,7 +64,11 @@ typedef enum {
     EVENT_FINISH,     /* Tarefa terminou sua execução */
     EVENT_SUSPEND,    /* Tarefa foi suspensa (aguardando recurso) */
     EVENT_RESUME,     /* Tarefa foi retomada após suspensão */
-    EVENT_LOTTERY     /* Desempate foi resolvido por sorteio */
+    EVENT_LOTTERY,    /* Desempate foi resolvido por sorteio */
+    EVENT_MUTEX_LOCK, /* Tentativa de lock de mutex */
+    EVENT_MUTEX_UNLOCK, /* Unlock de mutex */
+    EVENT_IO_START,   /* Início de operação de E/S */
+    EVENT_IO_END      /* Término de operação de E/S */
 } EventType;
 
 /*
@@ -100,6 +106,12 @@ typedef struct {
     int   arrival;           /* Tick em que a tarefa chega no sistema */
     int   duration;          /* Tempo total de CPU necessário para terminar */
     int   priority;          /* Prioridade estática (maior = mais prioritária) */
+    int   dynamic_priority;  /* Prioridade dinâmica (com envelhecimento para PRIOPEnv) */
+
+    /* ── Ações (mutex e I/O) ──────────────────────────────────────────── */
+    TaskAction actions[MAX_ACTIONS_PER_TASK]; /* Array de ações */
+    int        action_count;                   /* Quantidade de ações */
+    int        next_action_idx;                /* Índice da próxima ação a executar */
 
     /* ── Estado dinâmico (muda durante a simulação) ──────────────────────── */
     TaskState state;         /* Estado atual da tarefa */
@@ -109,6 +121,12 @@ typedef struct {
     int       finish_tick;   /* Tick em que a tarefa terminou (-1 se ainda não terminou) */
     int       wait_time;     /* Tempo total que ficou na fila de prontos (métrica) */
     int       turnaround;    /* Tempo total desde chegada até término (métrica) */
+    
+    /* ── Suspensão e sincronização ────────────────────────────────────── */
+    SuspendReason suspend_reason; /* Por que foi suspensa */
+    int           suspended_mutex_id; /* Qual mutex a suspendeu (-1 se nenhum) */
+    int           io_end_tick;    /* Tick em que E/S vai terminar (-1 se não em E/S) */
+    int           suspended_tick; /* Tick em que foi suspensa */
 
     /* ── Histórico de execução (para Gantt e retroceder simulação) ────────── */
     HistoryEntry history[MAX_HISTORY]; /* Array de entradas de histórico */

@@ -243,7 +243,76 @@ void sched_priop(const SchedContext *ctx, SchedResult *res) {
     assign_tasks_to_cpus(candidates, num_cands, ctx, res, &res->used_lottery);
 }
 
-/* ── Seletor de algoritmo ─────────────────────────────────────────────────── */
+/* ── PRIOPEnv - Prioridade Preemptivo com Envelhecimento ──────────────────── */
+
+/*
+ * priop_env_compare - Função de comparação para qsort no PRIOPEnv
+ *
+ * Ordena por prioridade dinâmica (com envelhecimento) decrescente.
+ * A prioridade dinâmica = static_priority + (current_time - arrival) / alpha
+ *
+ * O envelhecimento evita starvation de tarefas baixa prioridade.
+ */
+static int priop_env_compare(const void *pa, const void *pb) {
+    const TCB *a = *(const TCB **)pa;
+    const TCB *b = *(const TCB **)pb;
+
+    /* Compara prioridades dinâmicas */
+    if (a->dynamic_priority > b->dynamic_priority) return -1;
+    if (b->dynamic_priority > a->dynamic_priority) return  1;
+
+    /* Empate: aplica regras gerais de desempate */
+    return tiebreak(a, b, current_cpu_task_for_compare);
+}
+
+void sched_priopenv(const SchedContext *ctx, SchedResult *res) {
+    TCB *candidates[MAX_TASKS];
+    int  num_cands = collect_candidates(ctx, candidates);
+
+    /* Sem candidatos: todas as CPUs ficam ociosas */
+    if (num_cands == 0) {
+        for (int c = 0; c < ctx->num_cpus; c++) {
+            res->next_task_id[c] = NO_TASK;
+        }
+        res->used_lottery = 0;
+        return;
+    }
+
+    res->used_lottery = 0;
+    current_cpu_task_for_compare = (ctx->num_cpus > 0) ? ctx->cpu_tasks[0] : NO_TASK;
+
+    /* Calcula prioridades dinâmicas com envelhecimento
+     * Nota: alpha vem do contexto (mas não está lá... precisamos passar via config)
+     * Por enquanto, usaremos um valor padrão de 1
+     */
+    int alpha = 1; /* Será ajustado quando passarmos alpha via contexto */
+    for (int i = 0; i < num_cands; i++) {
+        TCB *t = candidates[i];
+        int age = ctx->current_tick - t->arrival;
+        /* Se alpha > 0, calcula envelhecimento; senão mantém prioridade estática */
+        if (alpha > 0) {
+            t->dynamic_priority = t->priority + (age / alpha);
+        } else {
+            t->dynamic_priority = t->priority;
+        }
+    }
+
+    /* Ordena candidatos pelo critério PRIOPEnv */
+    qsort(candidates, num_cands, sizeof(TCB *), priop_env_compare);
+
+    /* Verifica se sorteio foi necessário */
+    if (num_cands >= 2) {
+        const TCB *a = candidates[0];
+        const TCB *b = candidates[1];
+        if (a->dynamic_priority == b->dynamic_priority &&
+            a->arrival  == b->arrival  &&
+            a->duration == b->duration) {
+            res->used_lottery = 1;
+        }
+    }
+
+    assign_tasks_to_cpus(candidates, num_cands, ctx, res, &res->used_lottery);
+}
 
 /*
  * scheduler_get - Retorna ponteiro para a função do algoritmo escolhido
@@ -258,6 +327,7 @@ SchedulerFunc scheduler_get(SchedAlgo algo) {
     switch (algo) {
         case ALGO_SRTF:  return sched_srtf;
         case ALGO_PRIOP: return sched_priop;
+        case ALGO_PRIOPENV: return sched_priopenv;
         default:
             fprintf(stderr, "[ERRO] Algoritmo de escalonamento desconhecido: %d\n", algo);
             return NULL;

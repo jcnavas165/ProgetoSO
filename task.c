@@ -32,10 +32,15 @@ void task_init(TCB *t, int id, const char *color, int arrival, int duration, int
     t->arrival  = arrival;
     t->duration = duration;
     t->priority = priority;
+    t->dynamic_priority = priority; /* Inicialmente igual à prioridade estática */
 
     /* Copia a cor com segurança (strncpy evita overflow de buffer) */
     strncpy(t->color, color, COLOR_LEN - 1);
     t->color[COLOR_LEN - 1] = '\0'; /* Garante terminação nula */
+
+    /* Ações (vazias inicialmente) */
+    t->action_count = 0;
+    t->next_action_idx = 0;
 
     /* Estado inicial: tarefa criada mas ainda não chegou no sistema */
     t->state      = TASK_NEW;
@@ -45,6 +50,12 @@ void task_init(TCB *t, int id, const char *color, int arrival, int duration, int
     t->finish_tick = -1;      /* Ainda não terminou */
     t->wait_time  = 0;        /* Contador de tempo de espera na fila */
     t->turnaround = 0;        /* Será calculado quando a tarefa terminar */
+
+    /* Suspensão */
+    t->suspend_reason = SUSPEND_REASON_NONE;
+    t->suspended_mutex_id = -1;
+    t->io_end_tick = -1;
+    t->suspended_tick = -1;
 
     /* Histórico vazio - será preenchido durante a simulação */
     t->history_count = 0;

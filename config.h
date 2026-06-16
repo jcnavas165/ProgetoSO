@@ -21,6 +21,7 @@
 typedef enum {
     ALGO_SRTF  = 0,   /* Shortest Remaining Time First */
     ALGO_PRIOP = 1,   /* Prioridade Preemptivo */
+    ALGO_PRIOPENV = 2, /* Prioridade Preemptivo com Envelhecimento */
     ALGO_UNKNOWN = -1
 } SchedAlgo;
 
@@ -31,6 +32,7 @@ typedef struct {
     char      algo_name[MAX_ALGO_NAME]; /* Nome original lido do arquivo */
     int       quantum;                 /* Quantum de tempo (fatia máxima de CPU) */
     int       num_cpus;                /* Número de CPUs/processadores disponíveis */
+    int       alpha;                   /* Parâmetro alpha para envelhecimento (PRIOPEnv) */
 
     /* Lista de tarefas (linhas 2 e demais do arquivo) */
     TCB tasks[MAX_TASKS];              /* Array de TCBs para todas as tarefas */

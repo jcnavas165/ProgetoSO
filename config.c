@@ -1,8 +1,8 @@
 /*
  * config.c - Implementação da leitura e parse do arquivo de configuração
  *
- *   Linha 1: algoritmo;quantum;qtde_cpus
- *   Linha N: id;cor;ingresso;duracao;prioridade[;eventos]
+ *   Linha 1: algoritmo;quantum;qtde_cpus[;alpha]
+ *   Linha N: id;cor;ingresso;duracao;prioridade[;ações]
  *
  * ALTERAÇÕES v2 (suporte a CSV):
  *   - parse_task_line() extraída para função auxiliar reutilizável
@@ -10,6 +10,9 @@
  *   - config_load_csv() novo: lê arquivo .csv com separador vírgula (',')
  *   - config_load()     agora tolera ';' extra no final das linhas de tarefa
  *
+ * ALTERAÇÕES v3 (suporte a ações):
+ *   - parse_action() chamada em parse_task_line() para parse de ações
+ *   - Suporte a MLxx:tt, MUxx:tt, IO:tt-dd
  *
  */
 
@@ -18,6 +21,7 @@
 #include <string.h>
 #include <ctype.h>    /* tolower(), isdigit() - para tratar maiúsculas e dígitos */
 #include "config.h"
+#include "actions.h"
 
 /* ── Funções auxiliares internas (static = visíveis só neste arquivo) ─────── */
 
@@ -130,6 +134,20 @@ static int parse_task_line(char *buf, const char *sep,
 
     /* Inicializa o TCB desta tarefa no próximo slot livre do array */
     task_init(&cfg->tasks[cfg->num_tasks], id, color, arrival, duration, priority);
+    
+    /* Campos 6+ (opcional): ações (mutex e E/S) */
+    while ((tok = strtok(NULL, sep)) != NULL) {
+        tok = trim(tok);
+        if (strlen(tok) == 0) continue; /* Ignora campos vazios */
+
+        TaskAction action;
+        if (parse_action(tok, &action) == 0) {
+            task_add_action(&cfg->tasks[cfg->num_tasks], &action);
+        } else {
+            fprintf(stderr, "[AVISO] Ação inválida na tarefa %d: %s\n", id, tok);
+        }
+    }
+
     cfg->num_tasks++;   /* incrementa o contador de tarefas carregadas */
 
     return 0; /* Sucesso */
@@ -150,6 +168,7 @@ SchedAlgo algo_name_to_enum(const char *name) {
 
     if (strcmp(lower, "srtf")  == 0) return ALGO_SRTF;
     if (strcmp(lower, "priop") == 0) return ALGO_PRIOP;
+    if (strcmp(lower, "priopenv") == 0) return ALGO_PRIOPENV;
 
     return ALGO_UNKNOWN;
 }
@@ -161,6 +180,7 @@ const char *algo_enum_to_name(SchedAlgo algo) {
     switch (algo) {
         case ALGO_SRTF:  return "SRTF (Shortest Remaining Time First)";
         case ALGO_PRIOP: return "PRIOP (Prioridade Preemptivo)";
+        case ALGO_PRIOPENV: return "PRIOPEnv (Prioridade Preemptivo com Envelhecimento)";
         default:         return "DESCONHECIDO";
     }
 }
@@ -173,20 +193,20 @@ const char *algo_enum_to_name(SchedAlgo algo) {
  *   Igual à parse_task_line — tanto config_load() quanto config_load_csv()
  *   precisam parsear o cabeçalho. Separar evita duplicação.
  *
- * Formato: algoritmo<sep>quantum<sep>qtde_cpus
+ * Formato: algoritmo<sep>quantum<sep>qtde_cpus[<sep>alpha]
  *
  * Retorno: 0 = sucesso, -1 = erro
  */
 static int parse_header_line(char *buf, const char *sep,
                               SimConfig *cfg, FILE *f) {
-    /* Token 1: nome do algoritmo (ex: "SRTF", "PRIOP") */
+    /* Token 1: nome do algoritmo (ex: "SRTF", "PRIOP", "PRIOPEnv") */
     char *tok = strtok(buf, sep);
     if (!tok) { return -1; }
     strncpy(cfg->algo_name, trim(tok), MAX_ALGO_NAME - 1);
     cfg->algo = algo_name_to_enum(cfg->algo_name);
     if (cfg->algo == ALGO_UNKNOWN) {
         fprintf(stderr, "[ERRO] Algoritmo desconhecido: '%s'\n", cfg->algo_name);
-        fprintf(stderr, "       Algoritmos válidos: SRTF, PRIOP\n");
+        fprintf(stderr, "       Algoritmos válidos: SRTF, PRIOP, PRIOPEnv\n");
         if (f) fclose(f);
         return -1;
     }
@@ -210,6 +230,18 @@ static int parse_header_line(char *buf, const char *sep,
                 cfg->num_cpus, MAX_CPUS);
         if (f) fclose(f);
         return -1;
+    }
+
+    /* Token 4 (opcional): alpha para envelhecimento (PRIOPEnv) */
+    cfg->alpha = 1; /* Valor padrão */
+    tok = strtok(NULL, sep);
+    if (tok) {
+        cfg->alpha = atoi(trim(tok));
+        if (cfg->alpha < 0) {
+            fprintf(stderr, "[ERRO] Alpha inválido: %d (deve ser >= 0)\n", cfg->alpha);
+            if (f) fclose(f);
+            return -1;
+        }
     }
 
     return 0; /* Sucesso */
