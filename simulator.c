@@ -22,6 +22,27 @@
 #include "simulator.h"
 #include "simulator_ext.h"
 
+/*
+ * Comentários gerais (pt-BR):
+ * Este arquivo implementa o motor da simulação. A simulação avança em
+ * unidades discretas de tempo chamadas "ticks". A cada tick o simulador
+ * realiza uma sequência de fases: chegada, término, quantum, escalonador,
+ * execução, verificação de E/S, desligamento de CPUs e snapshot.
+ *
+ * Funções públicas principais:
+ * - sim_init: inicializa o estado da simulação a partir da configuração
+ * - sim_step: avança a simulação em um tick
+ * - sim_step_back: retrocede um tick (usando snapshots)
+ * - sim_run_full: executa até o fim (modo automático)
+ * - sim_run_interactive: loop interativo no terminal
+ *
+ * Observações de implementação:
+ * - O estado completo é salvo em um histórico (snapshots) para permitir
+ *   avançar/retroceder sem recalcular do zero.
+ * - As CPUs podem ser desligadas quando não há tarefas prontas, para
+ *   simular economia de energia/ociosidade.
+ */
+
 /* ── Funções auxiliares internas ──────────────────────────────────────────── */
 
 /*

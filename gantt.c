@@ -271,11 +271,17 @@ int gantt_generate_svg(const SimState *sim, const char *filename) {
                     break;
 
                 case TASK_SUSPENDED:
-                    /* Suspensa: preto (requisito 2.1) */
-                    svg_rect(f, x, y, GANTT_CELL_W, GANTT_CELL_H,
-                             "#222222", "#000000", 1.0f);
+                    /* Suspensa: distinguir entre E/S e espera por mutex */
+                    if (evt == EVENT_IO_START || evt == EVENT_IO_END) {
+                        /* Suspensa por E/S: cinza escuro */
+                        svg_rect(f, x, y, GANTT_CELL_W, GANTT_CELL_H,
+                                 "#555555", "#444444", 1.0f);
+                    } else {
+                        /* Suspensa por mutex (ou genérica): preto */
+                        svg_rect(f, x, y, GANTT_CELL_W, GANTT_CELL_H,
+                                 "#222222", "#000000", 1.0f);
+                    }
                     break;
-
                 case TASK_FINISHED:
                     /* Já terminou: cinza muito claro */
                     svg_rect(f, x, y, GANTT_CELL_W, GANTT_CELL_H,
@@ -360,9 +366,13 @@ int gantt_generate_svg(const SimState *sim, const char *filename) {
     svg_rect(f, leg_x + 155, leg_y - 10, 18, 12, "white", "#AAAAAA", 1.0f);
     svg_text(f, leg_x + 177, leg_y, "Pronta", 10, "start", "#555555");
 
-    /* Suspensa */
+    /* Suspensa (mutex) */
     svg_rect(f, leg_x + 225, leg_y - 10, 18, 12, "#222222", "#000000", 1.0f);
-    svg_text(f, leg_x + 247, leg_y, "Suspensa", 10, "start", "#555555");
+    svg_text(f, leg_x + 247, leg_y, "Suspensa (mutex)", 10, "start", "#555555");
+
+    /* Suspensa (E/S) */
+    svg_rect(f, leg_x + 380, leg_y - 10, 18, 12, "#555555", "#444444", 1.0f);
+    svg_text(f, leg_x + 402, leg_y, "Suspensa (E/S)", 10, "start", "#555555");
 
     /* Ícone de chegada */
     svg_text(f, leg_x + 315, leg_y, "&#9654; Chegada", 10, "start", "#00AA00");

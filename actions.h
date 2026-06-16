@@ -48,4 +48,20 @@ typedef struct {
     int waiting_count;         /* Quantidade de tarefas aguardando */
 } Mutex;
 
+/* Forward declaration to avoid circular include between actions.h and task.h */
+struct TCB;
+
+typedef struct TCB TCB;
+
+/* Funções exportadas */
+int parse_action(const char *action_str, TaskAction *action);
+int task_add_action(TCB *task, const TaskAction *action);
+TaskAction *task_get_next_action(TCB *task, int relative_time);
+void task_mark_action_executed(TCB *task);
+void mutex_init(Mutex *m, int id);
+int mutex_acquire(Mutex *m, int task_id);
+int mutex_release(Mutex *m, int task_id);
+int mutex_is_owner(const Mutex *m, int task_id);
+int mutex_is_waiting(const Mutex *m, int task_id);
+
 #endif /* ACTIONS_H */

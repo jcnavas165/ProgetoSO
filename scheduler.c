@@ -285,7 +285,8 @@ void sched_priopenv(const SchedContext *ctx, SchedResult *res) {
      * Nota: alpha vem do contexto (mas não está lá... precisamos passar via config)
      * Por enquanto, usaremos um valor padrão de 1
      */
-    int alpha = 1; /* Será ajustado quando passarmos alpha via contexto */
+        /* Usa o alpha passado no contexto (configurado pelo simulador) */
+        int alpha = ctx->alpha;
     for (int i = 0; i < num_cands; i++) {
         TCB *t = candidates[i];
         int age = ctx->current_tick - t->arrival;

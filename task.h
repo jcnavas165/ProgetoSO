@@ -1,7 +1,7 @@
 /*
-/* projeto A SO
+ * projeto A SO
  * Autores: Julio Cesar Navas e Nathálya Chaves 
- 
+ *
  * task.h - Definições da estrutura TCB (Task Control Block) e estados de tarefas
  *
  * O TCB é a estrutura central do simulador. Ele armazena TODAS as informações
@@ -99,7 +99,7 @@ typedef struct {
  * Em um SO real, cada processo/thread teria um PCB (Process Control Block)
  * similar a esta estrutura.
  */
-typedef struct {
+typedef struct TCB {
     /* ── Parâmetros estáticos (configurados antes da simulação) ─────────── */
     int   id;                /* Identificador único da tarefa (>= 1) */
     char  color[COLOR_LEN];  /* Cor RGB hex para o gráfico de Gantt, ex: "FF8000" */
